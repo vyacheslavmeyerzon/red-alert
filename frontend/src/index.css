@@ -1118,6 +1118,13 @@ body {
   background: #2563eb;
 }
 
+/* ─── LTR layout fix: keep sidebar left, map right ── */
+html[dir="ltr"] .sidebar {
+  order: -1;
+  border-inline-start: none;
+  border-right: 1px solid var(--border);
+}
+
 /* ─── Language Setting ───────────────────────── */
 .language-setting {
   display: flex;
