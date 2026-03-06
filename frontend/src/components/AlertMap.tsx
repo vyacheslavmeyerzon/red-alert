@@ -1,11 +1,11 @@
-import { MapContainer, TileLayer, Circle, Marker, Popup, useMap } from "react-leaflet";
-import L from "leaflet";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useCallback } from "react";
+import Map, { Source, Layer, Marker, Popup, type MapRef } from "react-map-gl/maplibre";
+import "maplibre-gl/dist/maplibre-gl.css";
 import type { AlertData } from "../types/alert";
 import { getShelterTime, formatShelterTime, shelterUrgencyColor } from "../data/shelterTimes";
 
 // Approximate coordinates for Israeli cities/regions
-const CITY_COORDS: Record<string, [number, number]> = {
+export const CITY_COORDS: Record<string, [number, number]> = {
   // Major cities
   "תל אביב": [32.0853, 34.7818],
   "תל אביב - מרכז העיר": [32.0653, 34.7818],
@@ -19,7 +19,6 @@ const CITY_COORDS: Record<string, [number, number]> = {
   "באר שבע": [31.253, 34.7915],
   "באר שבע - מזרח": [31.253, 34.81],
   "באר שבע - מערב": [31.253, 34.77],
-
   // Gush Dan
   "רמת גן": [32.0684, 34.8248],
   "גבעתיים": [32.0717, 34.8124],
@@ -39,7 +38,6 @@ const CITY_COORDS: Record<string, [number, number]> = {
   "אור יהודה": [32.03, 34.856],
   "מודיעין": [31.8969, 35.0101],
   "מודיעין עילית": [31.933, 35.043],
-
   // South
   "אשדוד": [31.8014, 34.6435],
   "אשקלון": [31.6688, 34.5743],
@@ -52,7 +50,6 @@ const CITY_COORDS: Record<string, [number, number]> = {
   "אילת": [29.5577, 34.9519],
   "מצפה רמון": [30.61, 34.8],
   "ירוחם": [31.025, 34.93],
-
   // Gaza border area
   "איבים": [31.388, 34.524],
   "ניר עם": [31.4917, 34.5583],
@@ -74,13 +71,11 @@ const CITY_COORDS: Record<string, [number, number]> = {
   "יד מרדכי": [31.59, 34.56],
   "זיקים": [31.62, 34.54],
   "כרמיה": [31.64, 34.56],
-
   // Sharon & center
   "נתניה": [32.3215, 34.8532],
   "חדרה": [32.44, 34.92],
   "עפולה": [32.61, 35.29],
   "יקנעם": [32.66, 35.11],
-
   // North
   "עכו": [32.9272, 35.0764],
   "נהריה": [33.0039, 35.0955],
@@ -97,7 +92,6 @@ const CITY_COORDS: Record<string, [number, number]> = {
   "קריית ים": [32.85, 35.07],
   "נשר": [32.77, 35.04],
   "טירת כרמל": [32.76, 34.97],
-
   // Northern border
   "מנרה": [33.24, 35.55],
   "מרגליות": [33.23, 35.56],
@@ -124,7 +118,6 @@ const CITY_COORDS: Record<string, [number, number]> = {
   "יראון": [33.09, 35.37],
   "דובב": [33.11, 35.36],
   "שומרה": [33.07, 35.16],
-
   // Golan
   "קצרין": [32.99, 35.69],
   "מג'דל שמס": [33.27, 35.77],
@@ -134,40 +127,28 @@ const CITY_COORDS: Record<string, [number, number]> = {
   "נווה אטיב": [33.28, 35.78],
 };
 
-const ISRAEL_CENTER: [number, number] = [31.5, 34.9];
+const ISRAEL_CENTER = { longitude: 34.9, latitude: 31.5 };
+const MAP_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
-const droneIcon = new L.DivIcon({
-  className: "drone-marker",
-  html: `<div class="drone-icon-wrapper">
-    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
-    </svg>
-  </div>`,
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-});
+// Threat zone radius by category (meters → approximate degrees for circle rendering)
+const THREAT_RADIUS: Record<number, number> = {
+  1: 3000,
+  2: 5000,
+  3: 8000,
+  4: 10000,
+  5: 4000,
+  6: 3000,
+  7: 2000,
+  13: 2000,
+};
 
-// Resolve city name to coordinates with fuzzy matching
 function resolveCoords(city: string): [number, number] | null {
   if (CITY_COORDS[city]) return CITY_COORDS[city];
-  // Partial match
   const key = Object.keys(CITY_COORDS).find(
     (k) => city.includes(k) || k.includes(city)
   );
   return key ? CITY_COORDS[key] : null;
 }
-
-// Threat zone radius by category (meters)
-const THREAT_RADIUS: Record<number, number> = {
-  1: 3000,  // rockets
-  2: 5000,  // radiological
-  3: 8000,  // earthquake
-  4: 10000, // tsunami
-  5: 4000,  // hostile aircraft
-  6: 3000,  // hazmat
-  7: 2000,  // terror
-  13: 2000, // update
-};
 
 interface ThreatZone {
   city: string;
@@ -179,14 +160,26 @@ interface Props {
   alerts: AlertData[];
 }
 
-function ThreatZones({ alerts }: Props) {
-  const map = useMap();
+/** Create a GeoJSON circle polygon from a center point and radius in meters. */
+function createCircle(lat: number, lng: number, radiusMeters: number, points = 48): GeoJSON.Feature {
+  const coords: [number, number][] = [];
+  const km = radiusMeters / 1000;
+  for (let i = 0; i <= points; i++) {
+    const angle = (i / points) * 2 * Math.PI;
+    const dLat = (km / 111.32) * Math.cos(angle);
+    const dLng = (km / (111.32 * Math.cos((lat * Math.PI) / 180))) * Math.sin(angle);
+    coords.push([lng + dLng, lat + dLat]);
+  }
+  return { type: "Feature", geometry: { type: "Polygon", coordinates: [coords] }, properties: {} };
+}
+
+export default function AlertMap({ alerts }: Props) {
+  const mapRef = useRef<MapRef>(null);
   const prevCountRef = useRef(0);
 
   const zones: ThreatZone[] = useMemo(() => {
     const result: ThreatZone[] = [];
     const seen = new Set<string>();
-
     for (const alert of alerts) {
       for (const city of alert.cities) {
         const coords = resolveCoords(city);
@@ -199,167 +192,142 @@ function ThreatZones({ alerts }: Props) {
     return result;
   }, [alerts]);
 
-  // Auto-fit map when alerts appear, reset to Israel view when cleared
+  // GeoJSON for threat zone circles
+  const zonesGeoJson = useMemo<GeoJSON.FeatureCollection>(() => ({
+    type: "FeatureCollection",
+    features: zones.map((z) => {
+      const radius = THREAT_RADIUS[z.alert.category] || 3000;
+      return createCircle(z.coords[0], z.coords[1], radius);
+    }),
+  }), [zones]);
+
+  // Auto-fit map to alert bounds
   useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
     if (zones.length > 0 && zones.length !== prevCountRef.current) {
-      const bounds = L.latLngBounds(zones.map((z) => z.coords));
-      map.fitBounds(bounds.pad(0.3), { maxZoom: 12, animate: true });
+      if (zones.length === 1) {
+        map.flyTo({ center: [zones[0].coords[1], zones[0].coords[0]], zoom: 11, duration: 1000 });
+      } else {
+        const lngs = zones.map((z) => z.coords[1]);
+        const lats = zones.map((z) => z.coords[0]);
+        map.fitBounds(
+          [[Math.min(...lngs) - 0.2, Math.min(...lats) - 0.2],
+           [Math.max(...lngs) + 0.2, Math.max(...lats) + 0.2]],
+          { padding: 60, maxZoom: 12, duration: 1000 }
+        );
+      }
     } else if (zones.length === 0 && prevCountRef.current > 0) {
-      // Alerts cleared — reset to full Israel view
-      map.flyTo(ISRAEL_CENTER, 8, { animate: true, duration: 1 });
+      map.flyTo({ center: [ISRAEL_CENTER.longitude, ISRAEL_CENTER.latitude], zoom: 8, duration: 1000 });
     }
     prevCountRef.current = zones.length;
-  }, [zones, map]);
+  }, [zones]);
+
+  const [popupInfo, setPopupInfo] = React.useState<ThreatZone | null>(null);
 
   return (
-    <>
-      {/* Red threat zone circles */}
+    <Map
+      ref={mapRef}
+      initialViewState={{ ...ISRAEL_CENTER, zoom: 8 }}
+      style={{ width: "100%", height: "100%" }}
+      mapStyle={MAP_STYLE}
+      attributionControl={false}
+    >
+      {/* Threat zone fills */}
+      <Source id="threat-zones" type="geojson" data={zonesGeoJson}>
+        <Layer
+          id="threat-zone-fill"
+          type="fill"
+          paint={{
+            "fill-color": "#ef4444",
+            "fill-opacity": 0.3,
+          }}
+        />
+        <Layer
+          id="threat-zone-border"
+          type="line"
+          paint={{
+            "line-color": "#ef4444",
+            "line-width": 2,
+            "line-opacity": 0.8,
+          }}
+        />
+      </Source>
+
+      {/* City markers */}
       {zones.map((z, i) => {
-        const radius = THREAT_RADIUS[z.alert.category] || 3000;
+        const isDrone = z.alert.category === 5;
         return (
-          <Circle
-            key={`zone-${z.city}-${z.alert.id}-${i}`}
-            center={z.coords}
-            radius={radius}
-            pathOptions={{
-              color: "#ef4444",
-              fillColor: "#ef4444",
-              fillOpacity: 0.35,
-              weight: 2,
-              opacity: 0.8,
-              className: "threat-zone-live",
-            }}
+          <Marker
+            key={`marker-${z.city}-${i}`}
+            longitude={z.coords[1]}
+            latitude={z.coords[0]}
+            anchor="center"
+            onClick={(e) => { e.originalEvent.stopPropagation(); setPopupInfo(z); }}
           >
-            <Popup>
-              <div style={{ direction: "rtl", textAlign: "right", minWidth: 180 }}>
-                <div
-                  style={{
-                    background: "#ef4444",
-                    color: "#fff",
-                    padding: "4px 8px",
-                    borderRadius: 4,
-                    marginBottom: 6,
-                    fontWeight: 700,
-                    fontSize: 13,
-                  }}
-                >
-                  🔴 אזעקה פעילה
-                </div>
-                <strong>{z.alert.title}</strong>
-                <br />
-                <span style={{ fontSize: 14 }}>{z.city}</span>
-                <br />
-                <small style={{ color: "#666" }}>
-                  {new Date(z.alert.alerted_at).toLocaleTimeString("he-IL")}
-                </small>
-                {(() => {
-                  const shelter = getShelterTime(z.city);
-                  if (shelter === null) return null;
-                  return (
-                    <div
-                      style={{
-                        marginTop: 6,
-                        padding: "5px 8px",
-                        background: shelterUrgencyColor(shelter),
-                        borderRadius: 4,
-                        fontSize: 13,
-                        fontWeight: 700,
-                        color: "#fff",
-                        textAlign: "center",
-                      }}
-                    >
-                      🛡️ זמן מיגון: {formatShelterTime(shelter)}
-                    </div>
-                  );
-                })()}
-                {z.alert.description && (
-                  <div
-                    style={{
-                      marginTop: 6,
-                      padding: "4px 6px",
-                      background: "#fff3f3",
-                      borderRadius: 4,
-                      fontSize: 12,
-                    }}
-                  >
-                    {z.alert.description}
-                  </div>
-                )}
+            {isDrone ? (
+              <div className="drone-icon-wrapper" style={{ cursor: "pointer" }}>
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
+                </svg>
               </div>
-            </Popup>
-          </Circle>
+            ) : (
+              <div className="alert-dot-marker" />
+            )}
+          </Marker>
         );
       })}
 
-      {/* Pulsing center dots (non-aircraft) */}
-      {zones
-        .filter((z) => z.alert.category !== 5)
-        .map((z, i) => (
-          <Circle
-            key={`dot-${z.city}-${i}`}
-            center={z.coords}
-            radius={500}
-            pathOptions={{
-              color: "#fff",
-              fillColor: "#ef4444",
-              fillOpacity: 0.9,
-              weight: 2,
-              opacity: 1,
-              className: "threat-dot-pulse",
-            }}
-          />
-        ))}
-
-      {/* Aircraft/drone icons for category 5 */}
-      {zones
-        .filter((z) => z.alert.category === 5)
-        .map((z, i) => (
-          <Marker
-            key={`drone-${z.city}-${i}`}
-            position={z.coords}
-            icon={droneIcon}
-          >
-            <Popup>
-              <div style={{ direction: "rtl", textAlign: "right", minWidth: 160 }}>
-                <div
-                  style={{
-                    background: "#f97316",
-                    color: "#fff",
-                    padding: "4px 8px",
-                    borderRadius: 4,
-                    marginBottom: 6,
-                    fontWeight: 700,
-                    fontSize: 13,
-                  }}
-                >
-                  ✈️ חדירת כלי טיס עוין
+      {/* Popup */}
+      {popupInfo && (
+        <Popup
+          longitude={popupInfo.coords[1]}
+          latitude={popupInfo.coords[0]}
+          anchor="bottom"
+          onClose={() => setPopupInfo(null)}
+          closeOnClick={false}
+          maxWidth="280px"
+        >
+          <div style={{ direction: "rtl", textAlign: "right" }}>
+            <div style={{
+              background: popupInfo.alert.category === 5 ? "#f97316" : "#ef4444",
+              color: "#fff", padding: "4px 8px", borderRadius: 4, marginBottom: 6,
+              fontWeight: 700, fontSize: 13,
+            }}>
+              {popupInfo.alert.category === 5 ? "✈️ חדירת כלי טיס עוין" : "🔴 אזעקה פעילה"}
+            </div>
+            <strong>{popupInfo.alert.title}</strong><br />
+            <span style={{ fontSize: 14 }}>{popupInfo.city}</span><br />
+            <small style={{ color: "#666" }}>
+              {new Date(popupInfo.alert.alerted_at).toLocaleTimeString("he-IL")}
+            </small>
+            {(() => {
+              const shelter = getShelterTime(popupInfo.city);
+              if (shelter === null) return null;
+              return (
+                <div style={{
+                  marginTop: 6, padding: "5px 8px", background: shelterUrgencyColor(shelter),
+                  borderRadius: 4, fontSize: 13, fontWeight: 700, color: "#fff", textAlign: "center",
+                }}>
+                  🛡️ זמן מיגון: {formatShelterTime(shelter)}
                 </div>
-                <span style={{ fontSize: 14 }}>{z.city}</span>
-                <br />
-                <small style={{ color: "#666" }}>
-                  {new Date(z.alert.alerted_at).toLocaleTimeString("he-IL")}
-                </small>
+              );
+            })()}
+            {popupInfo.alert.description && (
+              <div style={{
+                marginTop: 6, padding: "4px 6px", background: "#fff3f3",
+                borderRadius: 4, fontSize: 12,
+              }}>
+                {popupInfo.alert.description}
               </div>
-            </Popup>
-          </Marker>
-        ))}
-    </>
+            )}
+          </div>
+        </Popup>
+      )}
+    </Map>
   );
 }
 
-export default function AlertMap({ alerts }: Props) {
-  return (
-    <MapContainer
-      center={ISRAEL_CENTER}
-      zoom={8}
-      style={{ width: "100%", height: "100%" }}
-      zoomControl={true}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-      />
-      <ThreatZones alerts={alerts} />
-    </MapContainer>
-  );
-}
+// Need React import for useState in the component
+import React from "react";

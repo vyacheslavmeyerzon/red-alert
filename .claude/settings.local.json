@@ -12,7 +12,9 @@
       "WebFetch(domain:www.oref.org.il)",
       "Bash(docker exec:*)",
       "Bash(ipconfig:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(gh pr:*)",
+      "Bash(where gh:*)"
     ]
   }
 }
