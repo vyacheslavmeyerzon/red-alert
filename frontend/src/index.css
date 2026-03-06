@@ -1118,6 +1118,11 @@ body {
   background: #2563eb;
 }
 
+/* ─── Fixed header order: logo left, tabs right always ── */
+html[dir="rtl"] .app-header {
+  flex-direction: row-reverse;
+}
+
 /* ─── LTR layout fix: keep sidebar left, map right ── */
 html[dir="ltr"] .sidebar {
   order: -1;
