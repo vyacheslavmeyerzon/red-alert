@@ -1,5 +1,5 @@
 # Environment
-.env
+# .env — tracked for easy setup
 
 # Claude
 .claude/
