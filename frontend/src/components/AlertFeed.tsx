@@ -1,5 +1,6 @@
 import type { AlertData } from "../types/alert";
 import { getShelterTime, formatShelterTime, shelterUrgencyColor } from "../data/shelterTimes";
+import { useLang } from "../context/LanguageContext";
 
 const CATEGORY_COLORS: Record<number, string> = {
   1: "#ef4444", // rockets - red
@@ -43,17 +44,19 @@ function isSavedMatch(city: string, saved: string[]): boolean {
 }
 
 export default function AlertFeed({ alerts, connected, savedCities = [] }: Props) {
+  const { t } = useLang();
+
   return (
     <div className="alert-feed">
       <div className="feed-header">
-        <h2>התרעות חיות</h2>
+        <h2>{t.liveAlerts}</h2>
         <span className={`status-dot ${connected ? "connected" : "disconnected"}`} />
       </div>
 
       {alerts.length === 0 ? (
         <div className="no-alerts">
-          <p>אין התרעות פעילות</p>
-          <small>המערכת מאזינה לעדכונים...</small>
+          <p>{t.noActiveAlerts}</p>
+          <small>{t.listeningForUpdates}</small>
         </div>
       ) : (
         <div className="alert-list">
@@ -68,11 +71,11 @@ export default function AlertFeed({ alerts, connected, savedCities = [] }: Props
               <div
                 key={`${alert.id}-${i}`}
                 className={`alert-card ${hasSavedMatch ? "alert-card-saved" : ""}`}
-                style={{ borderRightColor: CATEGORY_COLORS[alert.category] || "#ef4444" }}
+                style={{ borderInlineStartColor: CATEGORY_COLORS[alert.category] || "#ef4444" }}
               >
                 {hasSavedMatch && (
                   <div className="saved-match-banner">
-                    🔔 התרעה בעיר שמורה!
+                    {t.savedCityAlert}
                   </div>
                 )}
                 <div className="alert-card-header">
@@ -81,7 +84,7 @@ export default function AlertFeed({ alerts, connected, savedCities = [] }: Props
                   </span>
                   <span className="alert-title">{alert.title}</span>
                   <span className="alert-time">
-                    {new Date(alert.alerted_at).toLocaleTimeString("he-IL")}
+                    {new Date(alert.alerted_at).toLocaleTimeString(t.locale)}
                   </span>
                 </div>
 
@@ -90,7 +93,7 @@ export default function AlertFeed({ alerts, connected, savedCities = [] }: Props
                     className="shelter-banner"
                     style={{ background: shelterUrgencyColor(minShelter) }}
                   >
-                    🛡️ זמן מיגון: {formatShelterTime(minShelter)}
+                    {t.shelterTime}{formatShelterTime(minShelter)}
                   </div>
                 )}
 

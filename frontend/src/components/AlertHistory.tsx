@@ -1,16 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { AlertData } from "../types/alert";
-
-const CATEGORIES: Record<number, string> = {
-  1: "ירי רקטות וטילים",
-  2: "אירוע רדיולוגי",
-  3: "רעידת אדמה",
-  4: "צונאמי",
-  5: "חדירת כלי טיס עוין",
-  6: "חומרים מסוכנים",
-  7: "חדירת מחבלים",
-  13: "עדכון מיוחד",
-};
+import { useLang } from "../context/LanguageContext";
 
 interface Props {
   data: AlertData[];
@@ -30,6 +20,7 @@ function CitySearch({ value, onChange }: { value: string; onChange: (v: string) 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const { t } = useLang();
 
   // Fetch suggestions
   useEffect(() => {
@@ -83,7 +74,7 @@ function CitySearch({ value, onChange }: { value: string; onChange: (v: string) 
       <div className="search-input-wrapper">
         <input
           type="text"
-          placeholder="חיפוש לפי עיר או יישוב..."
+          placeholder={t.searchPlaceholder}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -110,11 +101,12 @@ export default function AlertHistory({
   data, total, page, onPageChange, loading,
   city, onCityChange, category, onCategoryChange,
 }: Props) {
+  const { t } = useLang();
   const totalPages = Math.ceil(total / 50);
 
   return (
     <div className="alert-history">
-      <h2>היסטוריית התרעות</h2>
+      <h2>{t.alertHistory}</h2>
 
       <div className="history-filters">
         <CitySearch value={city} onChange={onCityChange} />
@@ -123,35 +115,35 @@ export default function AlertHistory({
           value={category ?? ""}
           onChange={(e) => onCategoryChange(e.target.value ? Number(e.target.value) : null)}
         >
-          <option value="">כל הסוגים</option>
-          {Object.entries(CATEGORIES).map(([id, name]) => (
+          <option value="">{t.allCategories}</option>
+          {Object.entries(t.categories).map(([id, name]) => (
             <option key={id} value={id}>{name}</option>
           ))}
         </select>
       </div>
 
       <div className="history-meta">
-        <span>סה"כ: {total} התרעות</span>
+        <span>{t.totalAlerts(total)}</span>
         {city && <span className="active-filter">🔍 {city}</span>}
-        <span>עמוד {page} מתוך {totalPages || 1}</span>
+        <span>{t.pageOf(page, totalPages || 1)}</span>
       </div>
 
       {loading ? (
-        <div className="loading">טוען...</div>
+        <div className="loading">{t.loading}</div>
       ) : (
         <table className="history-table">
           <thead>
             <tr>
-              <th>זמן</th>
-              <th>סוג</th>
-              <th>אזורים</th>
+              <th>{t.colTime}</th>
+              <th>{t.colType}</th>
+              <th>{t.colAreas}</th>
             </tr>
           </thead>
           <tbody>
             {data.map((alert, i) => (
               <tr key={`${alert.id}-${i}`}>
                 <td className="td-time">
-                  {new Date(alert.alerted_at).toLocaleString("he-IL")}
+                  {new Date(alert.alerted_at).toLocaleString(t.locale)}
                 </td>
                 <td>{alert.category_desc}</td>
                 <td className="td-cities">
@@ -170,7 +162,7 @@ export default function AlertHistory({
             {data.length === 0 && (
               <tr>
                 <td colSpan={3} className="empty-row">
-                  {city ? `לא נמצאו התרעות עבור "${city}"` : "אין נתונים"}
+                  {city ? t.noAlertsFor(city) : t.noData}
                 </td>
               </tr>
             )}
@@ -180,10 +172,10 @@ export default function AlertHistory({
 
       <div className="pagination">
         <button disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
-          הבא ←
+          {t.prevPage}
         </button>
         <button disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
-          → הקודם
+          {t.nextPage}
         </button>
       </div>
     </div>

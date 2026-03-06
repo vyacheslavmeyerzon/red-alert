@@ -10,6 +10,7 @@ import {
   Cell,
 } from "recharts";
 import type { AlertStats } from "../types/alert";
+import { useLang } from "../context/LanguageContext";
 
 const COLORS = ["#ef4444", "#f59e0b", "#3b82f6", "#10b981", "#8b5cf6", "#f97316"];
 
@@ -18,11 +19,13 @@ interface Props {
 }
 
 export default function StatsPanel({ stats }: Props) {
+  const { t } = useLang();
+
   if (!stats) {
     return (
       <div className="stats-panel">
-        <h2>סטטיסטיקות</h2>
-        <p className="loading">טוען נתונים...</p>
+        <h2>{t.statistics}</h2>
+        <p className="loading">{t.loadingData}</p>
       </div>
     );
   }
@@ -40,26 +43,26 @@ export default function StatsPanel({ stats }: Props) {
 
   return (
     <div className="stats-panel">
-      <h2>סטטיסטיקות</h2>
+      <h2>{t.statistics}</h2>
 
       <div className="stats-summary">
         <div className="stat-card">
           <span className="stat-value">{stats.total_alerts}</span>
-          <span className="stat-label">סה"כ התרעות</span>
+          <span className="stat-label">{t.totalAlertsLabel}</span>
         </div>
         <div className="stat-card">
           <span className="stat-value">{stats.top_cities.length}</span>
-          <span className="stat-label">אזורים מושפעים</span>
+          <span className="stat-label">{t.affectedAreas}</span>
         </div>
         <div className="stat-card">
           <span className="stat-value">{dailyData.length}</span>
-          <span className="stat-label">ימים פעילים</span>
+          <span className="stat-label">{t.activeDays}</span>
         </div>
       </div>
 
       {dailyData.length > 0 && (
         <div className="chart-container">
-          <h3>התרעות יומיות</h3>
+          <h3>{t.dailyAlerts}</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={dailyData}>
               <XAxis dataKey="day" tick={{ fill: "#94a3b8", fontSize: 11 }} />
@@ -80,7 +83,7 @@ export default function StatsPanel({ stats }: Props) {
 
       {cityData.length > 0 && (
         <div className="chart-container">
-          <h3>ערים מובילות</h3>
+          <h3>{t.topCities}</h3>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie

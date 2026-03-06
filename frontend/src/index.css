@@ -22,7 +22,6 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
-  direction: rtl;
   overflow: hidden;
   height: 100vh;
 }
@@ -106,7 +105,7 @@ body {
 .sidebar {
   width: 400px;
   background: var(--bg-secondary);
-  border-right: 1px solid var(--border);
+  border-inline-start: 1px solid var(--border);
   overflow-y: auto;
   padding: 16px;
 }
@@ -159,7 +158,7 @@ body {
 .alert-card {
   background: var(--bg-primary);
   border: 1px solid var(--border);
-  border-right: 4px solid var(--red-alert);
+  border-inline-start: 4px solid var(--red-alert);
   border-radius: 8px;
   padding: 12px;
   animation: slideIn 0.3s ease-out;
@@ -269,7 +268,6 @@ body {
   padding: 8px 12px;
   font-size: 0.85rem;
   outline: none;
-  direction: rtl;
 }
 
 .search-input-wrapper input::placeholder {
@@ -308,7 +306,6 @@ body {
   padding: 8px 12px;
   font-size: 0.8rem;
   cursor: pointer;
-  direction: rtl;
 }
 
 .suggestions-list li:hover {
@@ -323,7 +320,6 @@ body {
   color: var(--text-primary);
   padding: 8px 12px;
   font-size: 0.8rem;
-  direction: rtl;
   cursor: pointer;
   outline: none;
 }
@@ -377,7 +373,7 @@ body {
 }
 
 .history-table th {
-  text-align: right;
+  text-align: start;
   padding: 8px 6px;
   border-bottom: 2px solid var(--border);
   color: var(--text-secondary);
@@ -622,9 +618,9 @@ body {
 .map-legend {
   display: flex;
   gap: 10px;
-  margin-right: 8px;
-  padding-right: 8px;
-  border-right: 1px solid var(--border);
+  margin-inline-start: 8px;
+  padding-inline-start: 8px;
+  border-inline-start: 1px solid var(--border);
 }
 
 .legend-item {
@@ -716,8 +712,8 @@ body {
 
 /* ─── Saved City Alert Highlighting ───────────── */
 .alert-card-saved {
-  border-right-color: #dc2626 !important;
-  border-right-width: 6px !important;
+  border-inline-start-color: #dc2626 !important;
+  border-inline-start-width: 6px !important;
   background: rgba(220, 38, 38, 0.08) !important;
   animation: savedPulse 1s ease-in-out 5;
 }
@@ -792,7 +788,7 @@ body {
 
   .sidebar {
     width: 100%;
-    border-right: none;
+    border-inline-start: none;
     border-top: 1px solid var(--border);
   }
 }
@@ -1120,4 +1116,47 @@ body {
 
 .manual-ip-input button:hover {
   background: #2563eb;
+}
+
+/* ─── Language Setting ───────────────────────── */
+.language-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.language-setting-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.lang-toggle-group {
+  display: flex;
+  gap: 4px;
+}
+
+.lang-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 5px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.lang-btn:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.lang-btn.active {
+  background: var(--red-alert);
+  border-color: var(--red-alert);
+  color: white;
 }

@@ -5,11 +5,13 @@ import { useSavedCities } from "../hooks/useSavedCities";
 import { useWakeLock } from "../hooks/useWakeLock";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getShelterTime, formatShelterTime, shelterUrgencyColor } from "../data/shelterTimes";
+import { useLang } from "../context/LanguageContext";
 import type { AlertData } from "../types/alert";
 
 export default function TvView() {
   const { cities, hasMatch } = useSavedCities();
   const { playAlarm, playBeep } = useAlarm();
+  const { t } = useLang();
 
   useWakeLock();
 
@@ -63,7 +65,7 @@ export default function TvView() {
         </div>
         <div className="tv-status">
           <span className={`status-dot ${connected ? "connected" : "disconnected"}`} />
-          <span>{now.toLocaleTimeString("he-IL")}</span>
+          <span>{now.toLocaleTimeString(t.locale)}</span>
         </div>
       </div>
 
@@ -75,7 +77,7 @@ export default function TvView() {
               className="tv-shelter"
               style={{ background: shelterUrgencyColor(minShelter) }}
             >
-              🛡️ זמן מיגון: {formatShelterTime(minShelter)}
+              {t.shelterTime}{formatShelterTime(minShelter)}
             </div>
           )}
           {alerts.map((alert, i) => {
@@ -96,7 +98,7 @@ export default function TvView() {
       {alerts.length === 0 && (
         <div className="tv-waiting">
           <div className="tv-waiting-dot" />
-          <span>ממתין להתרעות...</span>
+          <span>{t.waitingForAlerts}</span>
         </div>
       )}
     </div>

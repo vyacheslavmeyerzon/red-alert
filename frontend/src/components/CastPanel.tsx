@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useLang } from "../context/LanguageContext";
 
 const STORAGE_KEY = "redalert-lan-ip";
 
@@ -73,6 +74,7 @@ export default function CastPanel() {
   const [detecting, setDetecting] = useState(true);
   const [manualInput, setManualInput] = useState("");
   const [showManual, setShowManual] = useState(false);
+  const { t } = useLang();
 
   const detect = useCallback(async () => {
     setDetecting(true);
@@ -137,31 +139,29 @@ export default function CastPanel() {
 
   return (
     <div className="cast-panel">
-      <h3>📺 שידור לטלוויזיה</h3>
-      <p className="cast-desc">
-        ניתן לשדר את מפת ההתרעות לטלוויזיה חכמה ברשת המקומית
-      </p>
+      <h3>{t.castTitle}</h3>
+      <p className="cast-desc">{t.castDesc}</p>
 
       <div className="cast-methods">
         <div className="cast-method">
-          <h4>אפשרות 1: Cast ישיר</h4>
+          <h4>{t.castOption1}</h4>
           <button
             className={`cast-btn ${casting ? "casting" : ""}`}
             onClick={startPresentation}
             disabled={!tvUrl}
           >
-            {casting ? "🔴 משדר..." : "📺 התחל שידור"}
+            {casting ? t.castBroadcasting : t.castStart}
           </button>
-          <small>דורש דפדפן Chrome/Edge עם תמיכה ב-Presentation API</small>
+          <small>{t.castOption1Note}</small>
         </div>
 
         <div className="cast-method">
-          <h4>אפשרות 2: פתיחה בטלוויזיה</h4>
-          <p className="tv-url-label">פתח כתובת זו בדפדפן הטלוויזיה:</p>
+          <h4>{t.castOption2}</h4>
+          <p className="tv-url-label">{t.castUrlLabel}</p>
 
           {detecting ? (
             <div className="tv-url-box">
-              <code>🔍 מזהה כתובת רשת...</code>
+              <code>{t.castDetecting}</code>
             </div>
           ) : tvUrl ? (
             <>
@@ -170,17 +170,17 @@ export default function CastPanel() {
                 <button
                   className="copy-btn"
                   onClick={() => navigator.clipboard.writeText(tvUrl)}
-                  title="העתק"
+                  title={t.copyTitle}
                 >
                   📋
                 </button>
               </div>
               <div className="tv-url-actions">
                 <button className="redetect-btn" onClick={detect}>
-                  🔄 זהה מחדש
+                  {t.castRedetect}
                 </button>
                 <button className="manual-btn" onClick={() => setShowManual(!showManual)}>
-                  ✏️ שנה ידנית
+                  {t.castManualBtn}
                 </button>
               </div>
             </>
@@ -189,9 +189,7 @@ export default function CastPanel() {
           {showManual && (
             <div className="manual-ip-form">
               <p className="manual-ip-desc">
-                הזן את כתובת ה-IP המקומית של המחשב.
-                <br />
-                ניתן למצוא אותה ע"י הרצת <code>ipconfig</code> בטרמינל (IPv4 Address).
+                {t.castManualIpDesc} <code>ipconfig</code> (IPv4 Address).
               </p>
               <div className="manual-ip-input">
                 <input
@@ -202,12 +200,12 @@ export default function CastPanel() {
                   onKeyDown={(e) => e.key === "Enter" && saveManualIp()}
                   dir="ltr"
                 />
-                <button onClick={saveManualIp}>שמור</button>
+                <button onClick={saveManualIp}>{t.castSave}</button>
               </div>
             </div>
           )}
 
-          <small>פתח כתובת זו בכל מכשיר המחובר לאותה רשת Wi-Fi</small>
+          <small>{t.castOption2Note}</small>
         </div>
       </div>
     </div>
