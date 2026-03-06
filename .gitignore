@@ -1,0 +1,28 @@
+# Environment
+.env
+
+# Claude
+.claude/
+CLAUDE.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# Node
+node_modules/
+dist/
+
+# Docker
+host-ip.txt
+
+# Internal
+checklist.md
+/TzvAdom.mp3
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
