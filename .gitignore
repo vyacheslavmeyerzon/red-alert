@@ -1,9 +1,7 @@
 # Environment
 # .env — tracked for easy setup
 
-# Claude
-.claude/
-CLAUDE.md
+# Claude — tracked for project context
 
 # Python
 __pycache__/
