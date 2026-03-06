@@ -3,27 +3,50 @@ import { useAlertStream } from "../hooks/useAlertStream";
 import { useAlarm } from "../hooks/useAlarm";
 import { useSavedCities } from "../hooks/useSavedCities";
 import { useWakeLock } from "../hooks/useWakeLock";
+import { useNotifications } from "../hooks/useNotifications";
+import { useVibrate } from "../hooks/useVibrate";
 import { useCallback, useEffect, useState } from "react";
 import { getShelterTime, formatShelterTime, shelterUrgencyColor } from "../data/shelterTimes";
 import { useLang } from "../context/LanguageContext";
 import type { AlertData } from "../types/alert";
 
+interface RecentAlert {
+  title: string;
+  cities: string[];
+  time: string;
+}
+
 export default function TvView() {
   const { cities, hasMatch } = useSavedCities();
   const { playAlarm, playBeep } = useAlarm();
+  const { notify } = useNotifications();
+  const { vibrate } = useVibrate();
   const { t } = useLang();
 
   useWakeLock();
 
+  // Track recent alerts for idle display
+  const [recentAlerts, setRecentAlerts] = useState<RecentAlert[]>([]);
+  const [todayCount, setTodayCount] = useState(0);
+
   const onAlert = useCallback(
     (alert: AlertData) => {
-      if (hasMatch(alert.cities)) {
+      const isSaved = hasMatch(alert.cities);
+      if (isSaved) {
         playAlarm();
       } else {
         playBeep();
       }
+      notify(alert, isSaved);
+      vibrate(isSaved);
+      // Track for idle display
+      setRecentAlerts((prev) => [
+        { title: alert.title, cities: alert.cities, time: new Date().toLocaleTimeString(t.locale) },
+        ...prev,
+      ].slice(0, 5));
+      setTodayCount((n) => n + 1);
     },
-    [hasMatch, playAlarm, playBeep]
+    [hasMatch, playAlarm, playBeep, notify, vibrate, t.locale]
   );
 
   const { alerts, connected } = useAlertStream(onAlert);
@@ -34,7 +57,6 @@ export default function TvView() {
     return () => clearInterval(id);
   }, []);
 
-  // Get the minimum shelter time across all active alerts
   const allCities = alerts.flatMap((a) => a.cities);
   const shelterTimes = allCities.map(getShelterTime).filter((t): t is number => t !== null);
   const minShelter = shelterTimes.length > 0 ? Math.min(...shelterTimes) : null;
@@ -45,14 +67,12 @@ export default function TvView() {
         <TvMap alerts={alerts} />
       </div>
 
-      {/* Top bar overlay */}
+      {/* Top bar overlay — bigger clock */}
       <div className="tv-topbar">
-        <div className="tv-title">
-          🚨 Red Alert
-        </div>
+        <div className="tv-title">🚨 Red Alert</div>
         <div className="tv-status">
           <span className={`status-dot ${connected ? "connected" : "disconnected"}`} />
-          <span>{now.toLocaleTimeString(t.locale)}</span>
+          <span className="tv-clock">{now.toLocaleTimeString(t.locale)}</span>
         </div>
       </div>
 
@@ -81,11 +101,27 @@ export default function TvView() {
         </div>
       )}
 
-      {/* No alerts — show waiting state */}
+      {/* Idle state — show recent alerts + today stats */}
       {alerts.length === 0 && (
-        <div className="tv-waiting">
-          <div className="tv-waiting-dot" />
-          <span>{t.waitingForAlerts}</span>
+        <div className="tv-idle">
+          <div className="tv-idle-header">
+            <div className="tv-waiting-dot" />
+            <span>{t.waitingForAlerts}</span>
+            {todayCount > 0 && (
+              <span className="tv-today-count">{t.tvIdleTodayStats(todayCount)}</span>
+            )}
+          </div>
+          {recentAlerts.length > 0 && (
+            <div className="tv-recent">
+              <div className="tv-recent-title">{t.tvIdleLastAlerts}</div>
+              {recentAlerts.map((a, i) => (
+                <div key={i} className="tv-recent-item">
+                  <span className="tv-recent-time">{a.time}</span>
+                  <span className="tv-recent-text">{a.title} — {a.cities.slice(0, 3).join(", ")}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

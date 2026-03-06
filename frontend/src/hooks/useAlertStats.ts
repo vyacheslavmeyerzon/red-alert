@@ -3,6 +3,7 @@ import type { AlertStats } from "../types/alert";
 
 export function useAlertStats(days = 7) {
   const [stats, setStats] = useState<AlertStats | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -10,6 +11,7 @@ export function useAlertStats(days = 7) {
         const res = await fetch(`/api/alerts/stats?days=${days}`);
         const json = await res.json();
         setStats(json.data);
+        setLastUpdated(new Date());
       } catch (err) {
         console.error("Failed to fetch stats:", err);
       }
@@ -20,5 +22,5 @@ export function useAlertStats(days = 7) {
     return () => clearInterval(interval);
   }, [days]);
 
-  return stats;
+  return { stats, lastUpdated };
 }

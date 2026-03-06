@@ -8,6 +8,7 @@ export function useAlertHistory(hours = 24) {
   const [loading, setLoading] = useState(false);
   const [city, setCity] = useState("");
   const [category, setCategory] = useState<number | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchHistory = useCallback(async () => {
     setLoading(true);
@@ -24,6 +25,7 @@ export function useAlertHistory(hours = 24) {
       const json: PaginatedResponse<AlertData> = await res.json();
       setData(json.data);
       setTotal(json.metadata.total);
+      setLastUpdated(new Date());
     } catch (err) {
       console.error("Failed to fetch history:", err);
     } finally {
@@ -31,7 +33,6 @@ export function useAlertHistory(hours = 24) {
     }
   }, [page, hours, city, category]);
 
-  // Reset to page 1 when filters change
   const setCityFilter = useCallback((v: string) => {
     setCity(v);
     setPage(1);
@@ -49,14 +50,8 @@ export function useAlertHistory(hours = 24) {
   }, [fetchHistory]);
 
   return {
-    data,
-    total,
-    page,
-    setPage,
-    loading,
-    city,
-    setCityFilter,
-    category,
-    setCategoryFilter,
+    data, total, page, setPage, loading,
+    city, setCityFilter, category, setCategoryFilter,
+    lastUpdated,
   };
 }

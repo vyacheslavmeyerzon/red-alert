@@ -6,18 +6,21 @@ import StatsPanel from "./components/StatsPanel";
 import SavedCities from "./components/SavedCities";
 import TvView from "./components/TvView";
 import CastPanel from "./components/CastPanel";
+import Onboarding, { useOnboarding } from "./components/Onboarding";
+import UpdatedAgo from "./components/UpdatedAgo";
 import { useAlertStream } from "./hooks/useAlertStream";
 import { useAlertHistory } from "./hooks/useAlertHistory";
 import { useAlertStats } from "./hooks/useAlertStats";
 import { useWakeLock } from "./hooks/useWakeLock";
 import { useSavedCities } from "./hooks/useSavedCities";
 import { useAlarm } from "./hooks/useAlarm";
+import { useNotifications } from "./hooks/useNotifications";
+import { useVibrate } from "./hooks/useVibrate";
 import { LanguageProvider, useLang } from "./context/LanguageContext";
 import type { AlertData } from "./types/alert";
 
 type Tab = "live" | "history" | "stats" | "settings";
 
-// Simple hash router: /tv renders TV-optimized fullscreen view
 const isTvMode = window.location.hash === "#/tv" || window.location.pathname === "/tv";
 
 function Dashboard() {
@@ -25,24 +28,35 @@ function Dashboard() {
   const [fullscreen, setFullscreen] = useState(false);
   const { cities, addCity, removeCity, hasMatch } = useSavedCities();
   const { playAlarm, playBeep } = useAlarm();
+  const { requestPermission, notify } = useNotifications();
+  const { vibrate } = useVibrate();
   const history = useAlertHistory(24);
-  const stats = useAlertStats(7);
+  const { stats, lastUpdated: statsUpdated } = useAlertStats(7);
   const { t, lang, toggleLang } = useLang();
+  const { showOnboarding, dismiss: dismissOnboarding } = useOnboarding();
 
   useWakeLock();
 
   const onAlert = useCallback(
     (alert: AlertData) => {
-      if (hasMatch(alert.cities)) {
+      const isSaved = hasMatch(alert.cities);
+      if (isSaved) {
         playAlarm();
       } else {
         playBeep();
       }
+      notify(alert, isSaved);
+      vibrate(isSaved);
     },
-    [hasMatch, playAlarm, playBeep]
+    [hasMatch, playAlarm, playBeep, notify, vibrate]
   );
 
   const { alerts, connected } = useAlertStream(onAlert);
+
+  const handleOnboardingActivate = useCallback(() => {
+    requestPermission();
+    dismissOnboarding();
+  }, [requestPermission, dismissOnboarding]);
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -59,6 +73,10 @@ function Dashboard() {
     document.onfullscreenchange = () => {
       setFullscreen(!!document.fullscreenElement);
     };
+  }
+
+  if (showOnboarding) {
+    return <Onboarding onActivate={handleOnboardingActivate} />;
   }
 
   return (
@@ -126,19 +144,27 @@ function Dashboard() {
         <aside className="sidebar">
           {tab === "live" && <AlertFeed alerts={alerts} connected={connected} savedCities={cities} />}
           {tab === "history" && (
-            <AlertHistory
-              data={history.data}
-              total={history.total}
-              page={history.page}
-              onPageChange={history.setPage}
-              loading={history.loading}
-              city={history.city}
-              onCityChange={history.setCityFilter}
-              category={history.category}
-              onCategoryChange={history.setCategoryFilter}
-            />
+            <>
+              <AlertHistory
+                data={history.data}
+                total={history.total}
+                page={history.page}
+                onPageChange={history.setPage}
+                loading={history.loading}
+                city={history.city}
+                onCityChange={history.setCityFilter}
+                category={history.category}
+                onCategoryChange={history.setCategoryFilter}
+              />
+              <UpdatedAgo lastUpdated={history.lastUpdated} />
+            </>
           )}
-          {tab === "stats" && <StatsPanel stats={stats} />}
+          {tab === "stats" && (
+            <>
+              <StatsPanel stats={stats} />
+              <UpdatedAgo lastUpdated={statsUpdated} />
+            </>
+          )}
           {tab === "settings" && (
             <div className="settings-panel">
               <div className="language-setting">

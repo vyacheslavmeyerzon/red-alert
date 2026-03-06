@@ -130,6 +130,11 @@ export const CITY_COORDS: Record<string, [number, number]> = {
 const ISRAEL_CENTER = { longitude: 34.9, latitude: 31.5 };
 const MAP_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
+const CATEGORY_COLORS: Record<number, string> = {
+  1: "#ef4444", 2: "#f59e0b", 3: "#8b5cf6", 4: "#3b82f6",
+  5: "#f97316", 6: "#10b981", 7: "#dc2626", 13: "#6366f1",
+};
+
 // Threat zone radius by category (meters → approximate degrees for circle rendering)
 const THREAT_RADIUS: Record<number, number> = {
   1: 3000,
@@ -161,7 +166,7 @@ interface Props {
 }
 
 /** Create a GeoJSON circle polygon from a center point and radius in meters. */
-function createCircle(lat: number, lng: number, radiusMeters: number, points = 48): GeoJSON.Feature {
+function createCircle(lat: number, lng: number, radiusMeters: number, points = 48, color = "#ef4444"): GeoJSON.Feature {
   const coords: [number, number][] = [];
   const km = radiusMeters / 1000;
   for (let i = 0; i <= points; i++) {
@@ -170,7 +175,29 @@ function createCircle(lat: number, lng: number, radiusMeters: number, points = 4
     const dLng = (km / (111.32 * Math.cos((lat * Math.PI) / 180))) * Math.sin(angle);
     coords.push([lng + dLng, lat + dLat]);
   }
-  return { type: "Feature", geometry: { type: "Polygon", coordinates: [coords] }, properties: {} };
+  return { type: "Feature", geometry: { type: "Polygon", coordinates: [coords] }, properties: { color } };
+}
+
+function ShelterCountdown({ city }: { city: string }) {
+  const seconds = getShelterTime(city);
+  const [elapsed, setElapsed] = React.useState(0);
+
+  React.useEffect(() => {
+    if (seconds === null) return;
+    const id = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(id);
+  }, [seconds]);
+
+  if (seconds === null) return null;
+  const remaining = Math.max(0, seconds - elapsed);
+  if (remaining <= 0) return <span className="shelter-countdown expired">00:00</span>;
+  const m = Math.floor(remaining / 60);
+  const s = remaining % 60;
+  return (
+    <span className={`shelter-countdown ${remaining <= 15 ? "urgent" : ""}`}>
+      {String(m).padStart(2, "0")}:{String(s).padStart(2, "0")}
+    </span>
+  );
 }
 
 export default function AlertMap({ alerts }: Props) {
@@ -197,7 +224,8 @@ export default function AlertMap({ alerts }: Props) {
     type: "FeatureCollection",
     features: zones.map((z) => {
       const radius = THREAT_RADIUS[z.alert.category] || 3000;
-      return createCircle(z.coords[0], z.coords[1], radius);
+      const color = CATEGORY_COLORS[z.alert.category] || "#ef4444";
+      return createCircle(z.coords[0], z.coords[1], radius, 48, color);
     }),
   }), [zones]);
 
@@ -240,7 +268,7 @@ export default function AlertMap({ alerts }: Props) {
           id="threat-zone-fill"
           type="fill"
           paint={{
-            "fill-color": "#ef4444",
+            "fill-color": ["get", "color"],
             "fill-opacity": 0.3,
           }}
         />
@@ -248,7 +276,7 @@ export default function AlertMap({ alerts }: Props) {
           id="threat-zone-border"
           type="line"
           paint={{
-            "line-color": "#ef4444",
+            "line-color": ["get", "color"],
             "line-width": 2,
             "line-opacity": 0.8,
           }}
@@ -258,6 +286,7 @@ export default function AlertMap({ alerts }: Props) {
       {/* City markers */}
       {zones.map((z, i) => {
         const isDrone = z.alert.category === 5;
+        const catColor = CATEGORY_COLORS[z.alert.category] || "#ef4444";
         return (
           <Marker
             key={`marker-${z.city}-${i}`}
@@ -266,15 +295,18 @@ export default function AlertMap({ alerts }: Props) {
             anchor="center"
             onClick={(e) => { e.originalEvent.stopPropagation(); setPopupInfo(z); }}
           >
-            {isDrone ? (
-              <div className="drone-icon-wrapper" style={{ cursor: "pointer" }}>
-                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
-                </svg>
-              </div>
-            ) : (
-              <div className="alert-dot-marker" />
-            )}
+            <div className="map-marker-group">
+              {isDrone ? (
+                <div className="drone-icon-wrapper" style={{ cursor: "pointer" }}>
+                  <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
+                  </svg>
+                </div>
+              ) : (
+                <div className="alert-dot-marker" style={{ background: catColor, boxShadow: `0 0 12px ${catColor}cc` }} />
+              )}
+              <ShelterCountdown city={z.city} />
+            </div>
           </Marker>
         );
       })}

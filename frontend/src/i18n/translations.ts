@@ -64,6 +64,16 @@ export type Translations = {
   copyTitle: string;
   // TvView
   waitingForAlerts: string;
+  tvIdleLastAlerts: string;
+  tvIdleTodayStats: (n: number) => string;
+  // Onboarding
+  onboardingSound: string;
+  onboardingCities: string;
+  onboardingNotifications: string;
+  onboardingActivate: string;
+  // Updated ago
+  updatedAgo: (seconds: number) => string;
+  updatedNow: string;
   // Categories
   categories: Record<number, string>;
   // Locale string for date/time formatting
@@ -127,6 +137,14 @@ export const translations: Record<Lang, Translations> = {
     castOption2Note: "פתח כתובת זו בכל מכשיר המחובר לאותה רשת Wi-Fi",
     copyTitle: "העתק",
     waitingForAlerts: "ממתין להתרעות...",
+    tvIdleLastAlerts: "התרעות אחרונות",
+    tvIdleTodayStats: (n) => `${n} התרעות היום`,
+    onboardingSound: "לחץ להפעלת צלילי התרעה",
+    onboardingCities: "הוסף ערים שמורות בהגדרות לקבלת סירנה מיוחדת",
+    onboardingNotifications: "קבל התראות גם כשהלשונית מוסתרת",
+    onboardingActivate: "🔊 הפעל והתחל",
+    updatedAgo: (s) => s >= 60 ? `עודכן לפני ${Math.floor(s / 60)} דקות` : `עודכן לפני ${s} שניות`,
+    updatedNow: "עודכן עכשיו",
     categories: {
       1: "ירי רקטות וטילים",
       2: "אירוע רדיולוגי",
@@ -196,6 +214,14 @@ export const translations: Record<Lang, Translations> = {
     castOption2Note: "Open this URL on any device connected to the same Wi-Fi network",
     copyTitle: "Copy",
     waitingForAlerts: "Waiting for alerts...",
+    tvIdleLastAlerts: "Recent Alerts",
+    tvIdleTodayStats: (n) => `${n} alerts today`,
+    onboardingSound: "Tap to enable alert sounds",
+    onboardingCities: "Add saved cities in Settings for a special siren",
+    onboardingNotifications: "Get notifications even when the tab is hidden",
+    onboardingActivate: "🔊 Activate & Start",
+    updatedAgo: (s) => s >= 60 ? `Updated ${Math.floor(s / 60)}m ago` : `Updated ${s}s ago`,
+    updatedNow: "Updated just now",
     categories: {
       1: "Rocket / Missile Fire",
       2: "Radiological Incident",

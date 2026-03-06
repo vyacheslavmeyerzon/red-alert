@@ -14,7 +14,9 @@
       "Bash(ipconfig:*)",
       "Bash(powershell:*)",
       "Bash(gh pr:*)",
-      "Bash(where gh:*)"
+      "Bash(where gh:*)",
+      "Bash(winget install:*)",
+      "Bash(export:*)"
     ]
   }
 }
