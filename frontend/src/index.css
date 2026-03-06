@@ -194,6 +194,32 @@ body {
   gap: 6px;
 }
 
+/* City carousel */
+.city-carousel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  width: 100%;
+}
+
+.city-carousel-slide {
+  animation: carouselFadeIn 0.35s ease;
+  flex: 1;
+}
+
+.city-carousel-counter {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@keyframes carouselFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .city-tag {
   background: rgba(239, 68, 68, 0.15);
   color: #fca5a5;
@@ -920,6 +946,12 @@ body {
   font-size: 1.1rem;
   color: #cbd5e1;
   line-height: 1.6;
+}
+.tv-alert-cities .city-carousel {
+  min-height: 32px;
+}
+.tv-alert-cities .city-carousel-counter {
+  font-size: 0.85rem;
 }
 
 .tv-waiting {

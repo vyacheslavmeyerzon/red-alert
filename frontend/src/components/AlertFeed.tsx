@@ -1,6 +1,7 @@
 import type { AlertData } from "../types/alert";
 import { getShelterTime, formatShelterTime, shelterUrgencyColor } from "../data/shelterTimes";
 import { useLang } from "../context/LanguageContext";
+import CityCarousel from "./CityCarousel";
 
 const CATEGORY_COLORS: Record<number, string> = {
   1: "#ef4444", // rockets - red
@@ -98,14 +99,17 @@ export default function AlertFeed({ alerts, connected, savedCities = [] }: Props
                 )}
 
                 <div className="alert-cities">
-                  {alert.cities.map((city, j) => (
-                    <span key={j} className="city-tag-row">
-                      <span className={`city-tag ${isSavedMatch(city, savedCities) ? "city-tag-saved" : ""}`}>
-                        {isSavedMatch(city, savedCities) && "🔔 "}{city}
+                  <CityCarousel
+                    cities={alert.cities}
+                    renderCity={(city) => (
+                      <span className="city-tag-row">
+                        <span className={`city-tag ${isSavedMatch(city, savedCities) ? "city-tag-saved" : ""}`}>
+                          {isSavedMatch(city, savedCities) && "🔔 "}{city}
+                        </span>
+                        <ShelterBadge city={city} />
                       </span>
-                      <ShelterBadge city={city} />
-                    </span>
-                  ))}
+                    )}
+                  />
                 </div>
                 {alert.description && (
                   <p className="alert-desc">{alert.description}</p>

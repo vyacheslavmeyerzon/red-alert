@@ -5,6 +5,7 @@ import { useSavedCities } from "../hooks/useSavedCities";
 import { useWakeLock } from "../hooks/useWakeLock";
 import { useNotifications } from "../hooks/useNotifications";
 import { useVibrate } from "../hooks/useVibrate";
+import CityCarousel from "./CityCarousel";
 import { useCallback, useEffect, useState } from "react";
 import { getShelterTime, formatShelterTime, shelterUrgencyColor } from "../data/shelterTimes";
 import { useLang } from "../context/LanguageContext";
@@ -93,7 +94,10 @@ export default function TvView() {
               <div key={`${alert.id}-${i}`} className={`tv-alert-card ${isSaved ? "tv-alert-saved" : ""}`}>
                 <div className="tv-alert-title">{alert.title}</div>
                 <div className="tv-alert-cities">
-                  {alert.cities.join(" • ")}
+                  <CityCarousel
+                    cities={alert.cities}
+                    renderCity={(city) => <span>{city}</span>}
+                  />
                 </div>
               </div>
             );
