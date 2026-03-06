@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useLang } from "../context/LanguageContext";
 
 interface Props {
   cities: string[];
@@ -12,6 +13,7 @@ export default function SavedCities({ cities, onAdd, onRemove }: Props) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const { t } = useLang();
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -48,16 +50,14 @@ export default function SavedCities({ cities, onAdd, onRemove }: Props) {
 
   return (
     <div className="saved-cities">
-      <h3>🔔 ערים שמורות</h3>
-      <p className="saved-cities-desc">
-        התרעה מיוחדת (צבע אדום) תישמע כאשר יש אזעקה באחת הערים השמורות
-      </p>
+      <h3>{t.savedCitiesTitle}</h3>
+      <p className="saved-cities-desc">{t.savedCitiesDesc}</p>
 
       <div className="saved-cities-search" ref={wrapperRef}>
         <div className="search-input-wrapper">
           <input
             type="text"
-            placeholder="הוסף עיר או יישוב..."
+            placeholder={t.addCityPlaceholder}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -78,7 +78,7 @@ export default function SavedCities({ cities, onAdd, onRemove }: Props) {
       </div>
 
       {cities.length === 0 ? (
-        <p className="saved-cities-empty">לא נבחרו ערים</p>
+        <p className="saved-cities-empty">{t.noCitiesSelected}</p>
       ) : (
         <div className="saved-cities-list">
           {cities.map((city) => (

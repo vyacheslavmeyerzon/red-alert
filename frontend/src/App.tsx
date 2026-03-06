@@ -12,6 +12,7 @@ import { useAlertStats } from "./hooks/useAlertStats";
 import { useWakeLock } from "./hooks/useWakeLock";
 import { useSavedCities } from "./hooks/useSavedCities";
 import { useAlarm } from "./hooks/useAlarm";
+import { LanguageProvider, useLang } from "./context/LanguageContext";
 import type { AlertData } from "./types/alert";
 
 type Tab = "live" | "history" | "stats" | "settings";
@@ -26,6 +27,7 @@ function Dashboard() {
   const { playAlarm, playBeep } = useAlarm();
   const history = useAlertHistory(24);
   const stats = useAlertStats(7);
+  const { t, lang, toggleLang } = useLang();
 
   useWakeLock();
 
@@ -67,26 +69,26 @@ function Dashboard() {
             <span className="header-icon">🚨</span>
             Red Alert Dashboard
           </h1>
-          <span className="header-subtitle">לוח בקרה - פיקוד העורף</span>
+          <span className="header-subtitle">{t.headerSubtitle}</span>
         </div>
         <nav className="tab-nav">
           <button
             className={tab === "live" ? "active" : ""}
             onClick={() => setTab("live")}
           >
-            חי
+            {t.tabLive}
           </button>
           <button
             className={tab === "history" ? "active" : ""}
             onClick={() => setTab("history")}
           >
-            היסטוריה
+            {t.tabHistory}
           </button>
           <button
             className={tab === "stats" ? "active" : ""}
             onClick={() => setTab("stats")}
           >
-            סטטיסטיקות
+            {t.tabStats}
           </button>
           <button
             className={tab === "settings" ? "active" : ""}
@@ -104,12 +106,14 @@ function Dashboard() {
             <button
               className="fullscreen-btn"
               onClick={toggleFullscreen}
-              title={fullscreen ? "יציאה ממסך מלא" : "מסך מלא"}
+              title={fullscreen ? t.fullscreenExit : t.fullscreenEnter}
             >
               {fullscreen ? "✕" : "⛶"}
             </button>
             <div className="map-legend">
-              <span className="legend-item"><span className="legend-dot live" /> אזעקה פעילה</span>
+              <span className="legend-item">
+                <span className="legend-dot live" /> {t.legendActiveAlert}
+              </span>
             </div>
           </div>
           {fullscreen && (
@@ -137,6 +141,23 @@ function Dashboard() {
           {tab === "stats" && <StatsPanel stats={stats} />}
           {tab === "settings" && (
             <div className="settings-panel">
+              <div className="language-setting">
+                <span className="language-setting-label">{t.settingsLanguage}</span>
+                <div className="lang-toggle-group">
+                  <button
+                    className={`lang-btn ${lang === "he" ? "active" : ""}`}
+                    onClick={() => lang !== "he" && toggleLang()}
+                  >
+                    {t.langHe}
+                  </button>
+                  <button
+                    className={`lang-btn ${lang === "en" ? "active" : ""}`}
+                    onClick={() => lang !== "en" && toggleLang()}
+                  >
+                    {t.langEn}
+                  </button>
+                </div>
+              </div>
               <SavedCities cities={cities} onAdd={addCity} onRemove={removeCity} />
               <CastPanel />
             </div>
@@ -148,6 +169,9 @@ function Dashboard() {
 }
 
 export default function App() {
-  if (isTvMode) return <TvView />;
-  return <Dashboard />;
+  return (
+    <LanguageProvider>
+      {isTvMode ? <TvView /> : <Dashboard />}
+    </LanguageProvider>
+  );
 }
