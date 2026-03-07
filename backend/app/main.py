@@ -7,6 +7,7 @@ from typing import AsyncGenerator
 
 import redis.asyncio as aioredis
 from fastapi import FastAPI, Depends, Query, Request
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -225,6 +226,91 @@ async def get_alert_stats(days: int = Query(7, ge=1, le=90)):
             "categories": CATEGORY_MAP,
         },
     }
+
+
+@app.get("/api/alerts/stats/hourly")
+async def get_hourly_stats(days: int = Query(7, ge=1, le=90)):
+    """Hourly heatmap data — alerts per hour of day per day of week."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    async with engine.begin() as conn:
+        rows = (
+            await conn.execute(
+                text("""
+                    SELECT EXTRACT(DOW FROM alerted_at) AS dow,
+                           EXTRACT(HOUR FROM alerted_at) AS hour,
+                           COUNT(*) AS count
+                    FROM alerts
+                    WHERE alerted_at >= :cutoff
+                    GROUP BY dow, hour
+                    ORDER BY dow, hour
+                """),
+                {"cutoff": cutoff},
+            )
+        ).fetchall()
+    return {
+        "success": True,
+        "data": [{"dow": int(r.dow), "hour": int(r.hour), "count": r.count} for r in rows],
+    }
+
+
+@app.get("/api/alerts/stats/timeline")
+async def get_timeline_stats(days: int = Query(30, ge=1, le=365)):
+    """Daily alert counts for timeline chart."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    async with engine.begin() as conn:
+        rows = (
+            await conn.execute(
+                text("""
+                    SELECT DATE(alerted_at) AS day, COUNT(*) AS count
+                    FROM alerts
+                    WHERE alerted_at >= :cutoff
+                    GROUP BY DATE(alerted_at)
+                    ORDER BY day
+                """),
+                {"cutoff": cutoff},
+            )
+        ).fetchall()
+    return {
+        "success": True,
+        "data": [{"day": str(r.day), "count": r.count} for r in rows],
+    }
+
+
+@app.get("/api/alerts/export")
+async def export_alerts(
+    days: int = Query(7, ge=1, le=365),
+    category: int | None = Query(None),
+):
+    """Export alerts as CSV."""
+    import io
+    import csv
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    async with engine.begin() as conn:
+        query = select(Alert).where(Alert.alerted_at >= cutoff)
+        if category is not None:
+            query = query.where(Alert.category == category)
+        query = query.order_by(Alert.alerted_at.desc())
+        rows = (await conn.execute(query)).fetchall()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Time", "Category", "Type", "Title", "Cities"])
+    for r in rows:
+        writer.writerow([
+            r.alerted_at.isoformat(),
+            r.category,
+            r.category_desc,
+            r.title,
+            "; ".join(r.cities) if r.cities else "",
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=alerts-{days}d.csv"},
+    )
 
 
 @app.get("/api/shelter-time")

@@ -1,4 +1,4 @@
-export type Lang = "he" | "en";
+export type Lang = "he" | "en" | "ru";
 
 export type Translations = {
   // App header
@@ -13,6 +13,7 @@ export type Translations = {
   settingsLanguage: string;
   langHe: string;
   langEn: string;
+  langRu: string;
   // AlertFeed
   liveAlerts: string;
   noActiveAlerts: string;
@@ -74,6 +75,34 @@ export type Translations = {
   // Updated ago
   updatedAgo: (seconds: number) => string;
   updatedNow: string;
+  // Sound settings
+  soundSettingTitle: string;
+  soundSettingDesc: string;
+  soundRedAlert: string;
+  soundRedAlertShort: string;
+  soundBell: string;
+  soundAlarm: string;
+  soundWarning: string;
+  soundSecondary: string;
+  soundUrgent: string;
+  soundCalm: string;
+  soundPreview: string;
+  // PWA
+  pwaInstall: string;
+  pwaInstalled: string;
+  // Stats enhanced
+  statsPeriod: string;
+  statsPeriod7: string;
+  statsPeriod14: string;
+  statsPeriod30: string;
+  statsPeriod90: string;
+  statsHourlyHeatmap: string;
+  statsExportCsv: string;
+  // TTS
+  ttsTitle: string;
+  ttsDesc: string;
+  ttsOn: string;
+  ttsOff: string;
   // Categories
   categories: Record<number, string>;
   // Locale string for date/time formatting
@@ -92,6 +121,7 @@ export const translations: Record<Lang, Translations> = {
     settingsLanguage: "שפה",
     langHe: "עברית",
     langEn: "English",
+    langRu: "Русский",
     liveAlerts: "התרעות חיות",
     noActiveAlerts: "אין התרעות פעילות",
     listeningForUpdates: "המערכת מאזינה לעדכונים...",
@@ -145,6 +175,30 @@ export const translations: Record<Lang, Translations> = {
     onboardingActivate: "🔊 הפעל והתחל",
     updatedAgo: (s) => s >= 60 ? `עודכן לפני ${Math.floor(s / 60)} דקות` : `עודכן לפני ${s} שניות`,
     updatedNow: "עודכן עכשיו",
+    soundSettingTitle: "🔊 צליל התרעה",
+    soundSettingDesc: "בחר את צליל ההתרעה לערים שמורות",
+    soundRedAlert: "צבע אדום",
+    soundRedAlertShort: "צבע אדום (קצר)",
+    soundBell: "פעמון",
+    soundAlarm: "אזעקה",
+    soundWarning: "אזהרה",
+    soundSecondary: "התרעה משנית",
+    soundUrgent: "דחוף",
+    soundCalm: "שקט",
+    soundPreview: "▶",
+    pwaInstall: "📲 התקן כאפליקציה",
+    pwaInstalled: "✅ מותקן כאפליקציה",
+    statsPeriod: "תקופה",
+    statsPeriod7: "7 ימים",
+    statsPeriod14: "14 ימים",
+    statsPeriod30: "30 ימים",
+    statsPeriod90: "90 ימים",
+    statsHourlyHeatmap: "חום שעתי",
+    statsExportCsv: "📥 ייצוא CSV",
+    ttsTitle: "🗣️ קריאת שמות יישובים",
+    ttsDesc: "הקראת שמות הערים בקול כאשר יש התרעה",
+    ttsOn: "מופעל",
+    ttsOff: "כבוי",
     categories: {
       1: "ירי רקטות וטילים",
       2: "אירוע רדיולוגי",
@@ -169,6 +223,7 @@ export const translations: Record<Lang, Translations> = {
     settingsLanguage: "Language",
     langHe: "עברית",
     langEn: "English",
+    langRu: "Русский",
     liveAlerts: "Live Alerts",
     noActiveAlerts: "No active alerts",
     listeningForUpdates: "System listening for updates...",
@@ -222,6 +277,30 @@ export const translations: Record<Lang, Translations> = {
     onboardingActivate: "🔊 Activate & Start",
     updatedAgo: (s) => s >= 60 ? `Updated ${Math.floor(s / 60)}m ago` : `Updated ${s}s ago`,
     updatedNow: "Updated just now",
+    soundSettingTitle: "🔊 Alert Sound",
+    soundSettingDesc: "Choose the alert sound for saved cities",
+    soundRedAlert: "Red Alert",
+    soundRedAlertShort: "Red Alert (short)",
+    soundBell: "Bell",
+    soundAlarm: "Alarm",
+    soundWarning: "Warning",
+    soundSecondary: "Secondary Alert",
+    soundUrgent: "Urgent",
+    soundCalm: "Calm",
+    soundPreview: "▶",
+    pwaInstall: "📲 Install as App",
+    pwaInstalled: "✅ Installed as App",
+    statsPeriod: "Period",
+    statsPeriod7: "7 days",
+    statsPeriod14: "14 days",
+    statsPeriod30: "30 days",
+    statsPeriod90: "90 days",
+    statsHourlyHeatmap: "Hourly Heatmap",
+    statsExportCsv: "📥 Export CSV",
+    ttsTitle: "🗣️ Read City Names",
+    ttsDesc: "Announce city names aloud when an alert is received",
+    ttsOn: "On",
+    ttsOff: "Off",
     categories: {
       1: "Rocket / Missile Fire",
       2: "Radiological Incident",
@@ -233,5 +312,107 @@ export const translations: Record<Lang, Translations> = {
       13: "Special Update",
     },
     locale: "en-US",
+  },
+
+  ru: {
+    headerSubtitle: "Панель управления — Командование тыла",
+    tabLive: "Онлайн",
+    tabHistory: "История",
+    tabStats: "Статистика",
+    fullscreenEnter: "На весь экран",
+    fullscreenExit: "Выйти из полного экрана",
+    legendActiveAlert: "Активная тревога",
+    settingsLanguage: "Язык",
+    langHe: "עברית",
+    langEn: "English",
+    langRu: "Русский",
+    liveAlerts: "Тревоги в реальном времени",
+    noActiveAlerts: "Нет активных тревог",
+    listeningForUpdates: "Система ожидает обновлений...",
+    savedCityAlert: "🔔 Тревога в сохранённом городе!",
+    shelterTime: "🛡️ Время укрытия: ",
+    alertHistory: "История тревог",
+    searchPlaceholder: "Поиск по городу или населённому пункту...",
+    allCategories: "Все типы",
+    totalAlerts: (n) => `Всего: ${n} тревог`,
+    pageOf: (p, total) => `Страница ${p} из ${total}`,
+    loading: "Загрузка...",
+    colTime: "Время",
+    colType: "Тип",
+    colAreas: "Районы",
+    noAlertsFor: (city) => `Тревоги для "${city}" не найдены`,
+    noData: "Нет данных",
+    prevPage: "← Назад",
+    nextPage: "Далее →",
+    statistics: "Статистика",
+    loadingData: "Загрузка данных...",
+    totalAlertsLabel: "Всего тревог",
+    affectedAreas: "Затронутые районы",
+    activeDays: "Активных дней",
+    dailyAlerts: "Тревоги по дням",
+    topCities: "Топ городов",
+    savedCitiesTitle: "🔔 Сохранённые города",
+    savedCitiesDesc: "Специальная сирена (красная) прозвучит при тревоге в одном из сохранённых городов",
+    addCityPlaceholder: "Добавить город или населённый пункт...",
+    noCitiesSelected: "Города не выбраны",
+    castTitle: "📺 Трансляция на ТВ",
+    castDesc: "Транслируйте карту тревог на Smart TV в локальной сети",
+    castOption1: "Вариант 1: Прямая трансляция",
+    castBroadcasting: "🔴 Трансляция...",
+    castStart: "📺 Начать трансляцию",
+    castOption1Note: "Требуется Chrome/Edge с поддержкой Presentation API",
+    castOption2: "Вариант 2: Открыть на ТВ",
+    castUrlLabel: "Откройте этот адрес в браузере ТВ:",
+    castDetecting: "🔍 Определение сетевого адреса...",
+    castRedetect: "🔄 Определить заново",
+    castManualBtn: "✏️ Ввести вручную",
+    castManualIpDesc: "Введите локальный IP-адрес этого компьютера. Его можно найти, выполнив",
+    castSave: "Сохранить",
+    castOption2Note: "Откройте этот адрес на любом устройстве в той же Wi-Fi сети",
+    copyTitle: "Копировать",
+    waitingForAlerts: "Ожидание тревог...",
+    tvIdleLastAlerts: "Последние тревоги",
+    tvIdleTodayStats: (n) => `${n} тревог сегодня`,
+    onboardingSound: "Нажмите для включения звуков тревоги",
+    onboardingCities: "Добавьте города в настройках для специальной сирены",
+    onboardingNotifications: "Получайте уведомления, даже когда вкладка скрыта",
+    onboardingActivate: "🔊 Активировать и начать",
+    updatedAgo: (s) => s >= 60 ? `Обновлено ${Math.floor(s / 60)} мин. назад` : `Обновлено ${s} сек. назад`,
+    updatedNow: "Обновлено только что",
+    soundSettingTitle: "🔊 Звук тревоги",
+    soundSettingDesc: "Выберите звук тревоги для сохранённых городов",
+    soundRedAlert: "Цвет красный",
+    soundRedAlertShort: "Цвет красный (короткий)",
+    soundBell: "Колокол",
+    soundAlarm: "Сирена",
+    soundWarning: "Предупреждение",
+    soundSecondary: "Вторичная тревога",
+    soundUrgent: "Срочный",
+    soundCalm: "Спокойный",
+    soundPreview: "▶",
+    pwaInstall: "📲 Установить как приложение",
+    pwaInstalled: "✅ Установлено как приложение",
+    statsPeriod: "Период",
+    statsPeriod7: "7 дней",
+    statsPeriod14: "14 дней",
+    statsPeriod30: "30 дней",
+    statsPeriod90: "90 дней",
+    statsHourlyHeatmap: "Тепловая карта по часам",
+    statsExportCsv: "📥 Экспорт CSV",
+    ttsTitle: "🗣️ Озвучка названий городов",
+    ttsDesc: "Голосовое объявление городов при получении тревоги",
+    ttsOn: "Вкл",
+    ttsOff: "Выкл",
+    categories: {
+      1: "Ракетный обстрел",
+      2: "Радиологическая угроза",
+      3: "Землетрясение",
+      4: "Цунами",
+      5: "Вражеский летательный аппарат",
+      6: "Опасные вещества",
+      7: "Проникновение террористов",
+      13: "Специальное обновление",
+    },
+    locale: "ru-RU",
   },
 };

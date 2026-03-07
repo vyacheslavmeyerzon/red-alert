@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<body>
+<p>Open this file in a browser, right-click each canvas and save as PNG:</p>
+<canvas id="c16" width="16" height="16"></canvas>
+<canvas id="c48" width="48" height="48"></canvas>
+<canvas id="c128" width="128" height="128"></canvas>
+<script>
+function draw(id, size) {
+  const c = document.getElementById(id);
+  const ctx = c.getContext('2d');
+  // Red circle background
+  ctx.beginPath();
+  ctx.arc(size/2, size/2, size/2-1, 0, Math.PI*2);
+  ctx.fillStyle = '#ef4444';
+  ctx.fill();
+  // White exclamation mark
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${size*0.6}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('!', size/2, size/2);
+}
+draw('c16', 16);
+draw('c48', 48);
+draw('c128', 128);
+
+// Auto-download
+['c16','c48','c128'].forEach(id => {
+  const c = document.getElementById(id);
+  const link = document.createElement('a');
+  link.download = `icon${c.width}.png`;
+  link.href = c.toDataURL();
+  link.click();
+});
+</script>
+</body>
+</html>

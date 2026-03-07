@@ -5,7 +5,9 @@ import AlertHistory from "./components/AlertHistory";
 import StatsPanel from "./components/StatsPanel";
 import SavedCities from "./components/SavedCities";
 import TvView from "./components/TvView";
+import OverlayView from "./components/OverlayView";
 import CastPanel from "./components/CastPanel";
+import SoundSettings from "./components/SoundSettings";
 import Onboarding, { useOnboarding } from "./components/Onboarding";
 import UpdatedAgo from "./components/UpdatedAgo";
 import { useAlertStream } from "./hooks/useAlertStream";
@@ -16,12 +18,15 @@ import { useSavedCities } from "./hooks/useSavedCities";
 import { useAlarm } from "./hooks/useAlarm";
 import { useNotifications } from "./hooks/useNotifications";
 import { useVibrate } from "./hooks/useVibrate";
+import { useTTS } from "./hooks/useTTS";
+import { usePWAInstall } from "./hooks/usePWAInstall";
 import { LanguageProvider, useLang } from "./context/LanguageContext";
 import type { AlertData } from "./types/alert";
 
 type Tab = "live" | "history" | "stats" | "settings";
 
 const isTvMode = window.location.hash === "#/tv" || window.location.pathname === "/tv";
+const isOverlayMode = window.location.hash === "#/overlay" || window.location.pathname === "/overlay";
 
 function Dashboard() {
   const [tab, setTab] = useState<Tab>("live");
@@ -30,9 +35,12 @@ function Dashboard() {
   const { playAlarm, playBeep } = useAlarm();
   const { requestPermission, notify } = useNotifications();
   const { vibrate } = useVibrate();
+  const { ttsEnabled, toggleTTS, speak } = useTTS();
+  const { canInstall, isInstalled, install } = usePWAInstall();
   const history = useAlertHistory(24);
-  const { stats, lastUpdated: statsUpdated } = useAlertStats(7);
-  const { t, lang, toggleLang } = useLang();
+  const [statsDays, setStatsDays] = useState(7);
+  const { stats, lastUpdated: statsUpdated } = useAlertStats(statsDays);
+  const { t, lang, setLang } = useLang();
   const { showOnboarding, dismiss: dismissOnboarding } = useOnboarding();
 
   useWakeLock();
@@ -47,8 +55,9 @@ function Dashboard() {
       }
       notify(alert, isSaved);
       vibrate(isSaved);
+      speak(alert.cities);
     },
-    [hasMatch, playAlarm, playBeep, notify, vibrate]
+    [hasMatch, playAlarm, playBeep, notify, vibrate, speak]
   );
 
   const { alerts, connected } = useAlertStream(onAlert);
@@ -161,7 +170,7 @@ function Dashboard() {
           )}
           {tab === "stats" && (
             <>
-              <StatsPanel stats={stats} />
+              <StatsPanel stats={stats} days={statsDays} onDaysChange={setStatsDays} />
               <UpdatedAgo lastUpdated={statsUpdated} />
             </>
           )}
@@ -172,19 +181,46 @@ function Dashboard() {
                 <div className="lang-toggle-group">
                   <button
                     className={`lang-btn ${lang === "he" ? "active" : ""}`}
-                    onClick={() => lang !== "he" && toggleLang()}
+                    onClick={() => setLang("he")}
                   >
                     {t.langHe}
                   </button>
                   <button
                     className={`lang-btn ${lang === "en" ? "active" : ""}`}
-                    onClick={() => lang !== "en" && toggleLang()}
+                    onClick={() => setLang("en")}
                   >
                     {t.langEn}
                   </button>
+                  <button
+                    className={`lang-btn ${lang === "ru" ? "active" : ""}`}
+                    onClick={() => setLang("ru")}
+                  >
+                    {t.langRu}
+                  </button>
                 </div>
               </div>
+              <SoundSettings />
+              <div className="tts-setting">
+                <div>
+                  <h3>{t.ttsTitle}</h3>
+                  <p className="tts-setting-desc">{t.ttsDesc}</p>
+                </div>
+                <button className={`tts-toggle ${ttsEnabled ? "active" : ""}`} onClick={toggleTTS}>
+                  {ttsEnabled ? t.ttsOn : t.ttsOff}
+                </button>
+              </div>
               <SavedCities cities={cities} onAdd={addCity} onRemove={removeCity} />
+              {(canInstall || isInstalled) && (
+                <div className="pwa-install-section">
+                  {canInstall ? (
+                    <button className="pwa-install-btn" onClick={install}>
+                      {t.pwaInstall}
+                    </button>
+                  ) : (
+                    <span className="pwa-installed">{t.pwaInstalled}</span>
+                  )}
+                </div>
+              )}
               <CastPanel />
             </div>
           )}
@@ -197,7 +233,7 @@ function Dashboard() {
 export default function App() {
   return (
     <LanguageProvider>
-      {isTvMode ? <TvView /> : <Dashboard />}
+      {isOverlayMode ? <OverlayView /> : isTvMode ? <TvView /> : <Dashboard />}
     </LanguageProvider>
   );
 }

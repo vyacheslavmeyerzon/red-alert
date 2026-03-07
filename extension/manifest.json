@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Red Alert - Israel Missile Alerts",
+  "version": "1.0.0",
+  "description": "Real-time missile and rocket alerts from Israel's Home Front Command (Pikud HaOref)",
+  "permissions": ["notifications", "storage", "alarms"],
+  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "options_page": "options.html"
+}

@@ -135,7 +135,7 @@ const CATEGORY_COLORS: Record<number, string> = {
   5: "#f97316", 6: "#10b981", 7: "#dc2626", 13: "#6366f1",
 };
 
-// Threat zone radius by category (meters → approximate degrees for circle rendering)
+// Base threat zone radius by category (meters)
 const THREAT_RADIUS: Record<number, number> = {
   1: 3000,
   2: 5000,
@@ -146,6 +146,19 @@ const THREAT_RADIUS: Record<number, number> = {
   7: 2000,
   13: 2000,
 };
+
+// Scale radius based on shelter time — cities with longer shelter times
+// are further from threat, so their zone should appear as the area they represent
+function getScaledRadius(category: number, city: string): number {
+  const base = THREAT_RADIUS[category] || 3000;
+  const shelter = getShelterTime(city);
+  if (shelter === null) return base;
+  if (shelter === 0) return base * 0.6;
+  if (shelter <= 15) return base * 0.8;
+  if (shelter <= 30) return base;
+  if (shelter <= 60) return base * 1.3;
+  return base * 1.5;
+}
 
 function resolveCoords(city: string): [number, number] | null {
   if (CITY_COORDS[city]) return CITY_COORDS[city];
@@ -223,9 +236,19 @@ export default function AlertMap({ alerts }: Props) {
   const zonesGeoJson = useMemo<GeoJSON.FeatureCollection>(() => ({
     type: "FeatureCollection",
     features: zones.map((z) => {
-      const radius = THREAT_RADIUS[z.alert.category] || 3000;
+      const radius = getScaledRadius(z.alert.category, z.city);
       const color = CATEGORY_COLORS[z.alert.category] || "#ef4444";
-      return createCircle(z.coords[0], z.coords[1], radius, 48, color);
+      return createCircle(z.coords[0], z.coords[1], radius, 64, color);
+    }),
+  }), [zones]);
+
+  // Outer pulse ring — 1.5x radius
+  const pulseGeoJson = useMemo<GeoJSON.FeatureCollection>(() => ({
+    type: "FeatureCollection",
+    features: zones.map((z) => {
+      const radius = getScaledRadius(z.alert.category, z.city) * 1.5;
+      const color = CATEGORY_COLORS[z.alert.category] || "#ef4444";
+      return createCircle(z.coords[0], z.coords[1], radius, 64, color);
     }),
   }), [zones]);
 
@@ -262,6 +285,28 @@ export default function AlertMap({ alerts }: Props) {
       mapStyle={MAP_STYLE}
       attributionControl={false}
     >
+      {/* Outer pulse ring */}
+      <Source id="pulse-zones" type="geojson" data={pulseGeoJson}>
+        <Layer
+          id="pulse-zone-fill"
+          type="fill"
+          paint={{
+            "fill-color": ["get", "color"],
+            "fill-opacity": 0.08,
+          }}
+        />
+        <Layer
+          id="pulse-zone-border"
+          type="line"
+          paint={{
+            "line-color": ["get", "color"],
+            "line-width": 1,
+            "line-opacity": 0.3,
+            "line-dasharray": [4, 4],
+          }}
+        />
+      </Source>
+
       {/* Threat zone fills */}
       <Source id="threat-zones" type="geojson" data={zonesGeoJson}>
         <Layer

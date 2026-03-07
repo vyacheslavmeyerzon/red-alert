@@ -12,6 +12,22 @@ const THREAT_RADIUS: Record<number, number> = {
   1: 3000, 2: 5000, 3: 8000, 4: 10000, 5: 4000, 6: 3000, 7: 2000, 13: 2000,
 };
 
+const CATEGORY_COLORS: Record<number, string> = {
+  1: "#ef4444", 2: "#f59e0b", 3: "#8b5cf6", 4: "#3b82f6",
+  5: "#f97316", 6: "#10b981", 7: "#dc2626", 13: "#6366f1",
+};
+
+function getScaledRadius(category: number, city: string): number {
+  const base = THREAT_RADIUS[category] || 3000;
+  const shelter = getShelterTime(city);
+  if (shelter === null) return base;
+  if (shelter === 0) return base * 0.6;
+  if (shelter <= 15) return base * 0.8;
+  if (shelter <= 30) return base;
+  if (shelter <= 60) return base * 1.3;
+  return base * 1.5;
+}
+
 const droneIcon = new L.DivIcon({
   className: "drone-marker",
   html: `<div class="drone-icon-wrapper">
@@ -74,16 +90,34 @@ function ThreatZones({ alerts }: { alerts: AlertData[] }) {
 
   return (
     <>
+      {/* Outer pulse rings */}
       {zones.map((z, i) => {
-        const radius = THREAT_RADIUS[z.alert.category] || 3000;
+        const radius = getScaledRadius(z.alert.category, z.city) * 1.5;
+        const color = CATEGORY_COLORS[z.alert.category] || "#ef4444";
+        return (
+          <Circle
+            key={`pulse-${z.city}-${i}`}
+            center={z.coords}
+            radius={radius}
+            pathOptions={{
+              color, fillColor: color, fillOpacity: 0.08,
+              weight: 1, opacity: 0.3, dashArray: "8 8",
+            }}
+          />
+        );
+      })}
+
+      {zones.map((z, i) => {
+        const radius = getScaledRadius(z.alert.category, z.city);
+        const color = CATEGORY_COLORS[z.alert.category] || "#ef4444";
         return (
           <Circle
             key={`zone-${z.city}-${z.alert.id}-${i}`}
             center={z.coords}
             radius={radius}
             pathOptions={{
-              color: "#ef4444",
-              fillColor: "#ef4444",
+              color,
+              fillColor: color,
               fillOpacity: 0.35,
               weight: 2,
               opacity: 0.8,

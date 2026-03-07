@@ -1,15 +1,16 @@
 import { useRef, useCallback } from "react";
+import { getSavedSound, playSoundById } from "../data/alertSounds";
 
 const ALARM_DURATION_MS = 20000;
 
 export function useAlarm() {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const stopRef = useRef<(() => void) | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stopAlarm = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+    if (stopRef.current) {
+      stopRef.current();
+      stopRef.current = null;
     }
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -18,23 +19,16 @@ export function useAlarm() {
   }, []);
 
   const playAlarm = useCallback(() => {
-    // If already playing, just reset the 20s stop timer
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
 
-    if (!audioRef.current) {
-      audioRef.current = new Audio("/TzvAdom.mp3");
-      audioRef.current.loop = true;
+    if (!stopRef.current) {
+      const soundId = getSavedSound();
+      const { stop } = playSoundById(soundId, true);
+      stopRef.current = stop;
     }
 
-    // Start playing if not already
-    if (audioRef.current.paused) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {});
-    }
-
-    // Stop after 20 seconds of silence (timer resets on each call)
     timerRef.current = setTimeout(stopAlarm, ALARM_DURATION_MS);
   }, [stopAlarm]);
 
