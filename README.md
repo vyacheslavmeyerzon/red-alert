@@ -61,7 +61,7 @@ Runs entirely on local Docker Desktop. Installable as a PWA on desktop and mobil
 |---------|------|------|
 | **Backend** | FastAPI (Python) | Polls Oref API every 2s, stores to PostgreSQL, broadcasts via Redis pub/sub + SSE |
 | **Frontend** | React + TypeScript + Vite | Dark-themed PWA with MapLibre GL / Leaflet, Recharts, SSE client |
-| **Database** | PostgreSQL 16 + PostGIS | Alert history, spatial centroid column, GIN index on cities |
+| **Database** | PostgreSQL 16 + PostGIS | Alert history with spatial centroid column |
 | **Cache** | Redis 7 | Pub/sub between poller and SSE subscribers |
 | **Proxy** | Nginx | Reverse proxy: `/api/*` -> backend, `/` -> frontend, SSE-optimized config |
 
@@ -99,17 +99,6 @@ docker compose up --build
 - Background alert notifications via Service Worker
 - Cached interface loads instantly, even with poor connection
 - No app store needed — install directly from the browser
-
-## Demo Mode
-
-To test without Israeli IP or during peacetime:
-
-```env
-# In .env, set:
-DEMO_MODE=true
-```
-
-This cycles through simulated alerts for UI testing.
 
 ## Smart TV Setup
 
