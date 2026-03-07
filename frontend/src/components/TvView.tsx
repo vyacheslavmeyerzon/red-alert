@@ -19,7 +19,7 @@ interface RecentAlert {
 }
 
 export default function TvView() {
-  const { cities, hasMatch } = useSavedCities();
+  const { hasMatch } = useSavedCities();
   const { playAlarm, playBeep } = useAlarm();
   const { notify } = useNotifications();
   const { vibrate } = useVibrate();
