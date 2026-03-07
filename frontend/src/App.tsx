@@ -45,19 +45,52 @@ function Dashboard() {
 
   useWakeLock();
 
+  const isEventEnded = useCallback((alert: AlertData) => {
+    const t = (alert.title || "").toLowerCase();
+    return t.includes("הסתיים") || t.includes("האירוע הסתיים");
+  }, []);
+
   const onAlert = useCallback(
     (alert: AlertData) => {
-      const isSaved = hasMatch(alert.cities);
-      if (isSaved) {
-        playAlarm();
+      if (isEventEnded(alert)) {
+        // Soft chime for "event ended"
+        try {
+          const ctx = new AudioContext();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = 523;
+          osc.type = "sine";
+          gain.gain.setValueAtTime(0.15, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
+          osc.start();
+          osc.stop(ctx.currentTime + 1.5);
+          // Second gentle tone
+          const osc2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.connect(gain2);
+          gain2.connect(ctx.destination);
+          osc2.frequency.value = 659;
+          osc2.type = "sine";
+          gain2.gain.setValueAtTime(0.1, ctx.currentTime + 0.3);
+          gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.8);
+          osc2.start(ctx.currentTime + 0.3);
+          osc2.stop(ctx.currentTime + 1.8);
+        } catch {}
       } else {
-        playBeep();
+        const isSaved = hasMatch(alert.cities);
+        if (isSaved) {
+          playAlarm();
+        } else {
+          playBeep();
+        }
+        vibrate(isSaved);
       }
-      notify(alert, isSaved);
-      vibrate(isSaved);
-      speak(alert.cities);
+      notify(alert, hasMatch(alert.cities));
+      speak(alert.title, alert.cities);
     },
-    [hasMatch, playAlarm, playBeep, notify, vibrate, speak]
+    [isEventEnded, hasMatch, playAlarm, playBeep, notify, vibrate, speak]
   );
 
   const { alerts, connected } = useAlertStream(onAlert);

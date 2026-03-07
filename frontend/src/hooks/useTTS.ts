@@ -14,9 +14,10 @@ export function useTTS() {
   }, []);
 
   const speak = useCallback(
-    (cities: string[]) => {
+    (title: string, cities: string[]) => {
       if (!enabled || !window.speechSynthesis) return;
-      const text = cities.join(", ");
+      // Announce alert type first, then cities
+      const text = `${title}. ${cities.join(", ")}`;
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = "he-IL";
       utterance.rate = 0.9;

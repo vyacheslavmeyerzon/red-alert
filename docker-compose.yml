@@ -55,6 +55,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      HOST_LAN_IP: ${HOST_LAN_IP:-}
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - nginx-ssl:/etc/nginx/ssl
@@ -62,11 +64,49 @@ services:
     command:
       - -c
       - |
-        if [ ! -f /etc/nginx/ssl/cert.pem ]; then
-          mkdir -p /etc/nginx/ssl
-          apk add --no-cache openssl
-          openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout /etc/nginx/ssl/key.pem -out /etc/nginx/ssl/cert.pem -subj '/CN=RedAlert'
+        apk add --no-cache openssl curl >/dev/null 2>&1
+        mkdir -p /etc/nginx/ssl
+        # Generate CA once (persisted in volume) — user installs this on phone once
+        if [ ! -f /etc/nginx/ssl/ca.pem ]; then
+          openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+            -keyout /etc/nginx/ssl/ca-key.pem -out /etc/nginx/ssl/ca.pem \
+            -subj '/CN=RedAlert CA'
         fi
+        # Get host LAN IP from env var (auto-set by start.sh or manual .env)
+        LAN_IP="$${HOST_LAN_IP:-}"
+        # Build SAN
+        SAN="IP:127.0.0.1,DNS:localhost"
+        DOCKER_HOST_IP=$$(getent hosts host.docker.internal 2>/dev/null | awk '{print $$1}') || true
+        if [ -n "$$DOCKER_HOST_IP" ]; then SAN="$$SAN,IP:$$DOCKER_HOST_IP"; fi
+        if echo "$$LAN_IP" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$$'; then
+          SAN="$$SAN,IP:$$LAN_IP"
+          # Cover entire /24 subnet for DHCP changes
+          SUBNET=$$(echo "$$LAN_IP" | sed 's/\.[0-9]*$$//')
+          for i in $$(seq 2 254); do SAN="$$SAN,IP:$$SUBNET.$$i"; done
+        fi
+        # Check if cert exists and covers current IPs
+        OLD_SAN=$$(openssl x509 -in /etc/nginx/ssl/cert.pem -noout -ext subjectAltName 2>/dev/null || echo "none")
+        NEED_REGEN="no"
+        if echo "$$OLD_SAN" | grep -q "none"; then NEED_REGEN="yes"; fi
+        for IP in $$DOCKER_HOST_IP $$LAN_IP $$ENV_IP; do
+          if [ -n "$$IP" ] && ! echo "$$OLD_SAN" | grep -q "$$IP"; then NEED_REGEN="yes"; fi
+        done
+        if [ "$$NEED_REGEN" = "yes" ]; then
+          echo "Generating SSL cert with SAN: $$SAN"
+          openssl req -new -nodes -newkey rsa:2048 \
+            -keyout /etc/nginx/ssl/key.pem -out /tmp/server.csr \
+            -subj '/CN=RedAlert' \
+            -addext "subjectAltName=$$SAN"
+          openssl x509 -req -in /tmp/server.csr \
+            -CA /etc/nginx/ssl/ca.pem -CAkey /etc/nginx/ssl/ca-key.pem -CAcreateserial \
+            -out /etc/nginx/ssl/cert.pem -days 3650 \
+            -copy_extensions copyall
+          rm -f /tmp/server.csr
+        else
+          echo "SSL cert already valid for $$LAN_IP"
+        fi
+        # CA cert available for download
+        cp /etc/nginx/ssl/ca.pem /etc/nginx/ssl/ca-download.pem
         nginx -g 'daemon off;'
     depends_on:
       - frontend

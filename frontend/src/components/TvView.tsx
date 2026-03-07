@@ -30,16 +30,48 @@ export default function TvView() {
   const [recentAlerts, setRecentAlerts] = useState<RecentAlert[]>([]);
   const [todayCount, setTodayCount] = useState(0);
 
+  const isEventEnded = useCallback((alert: AlertData) => {
+    const title = (alert.title || "").toLowerCase();
+    return title.includes("הסתיים") || title.includes("האירוע הסתיים");
+  }, []);
+
   const onAlert = useCallback(
     (alert: AlertData) => {
-      const isSaved = hasMatch(alert.cities);
-      if (isSaved) {
-        playAlarm();
+      if (isEventEnded(alert)) {
+        // Soft chime for "event ended"
+        try {
+          const ctx = new AudioContext();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = 523;
+          osc.type = "sine";
+          gain.gain.setValueAtTime(0.15, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
+          osc.start();
+          osc.stop(ctx.currentTime + 1.5);
+          const osc2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.connect(gain2);
+          gain2.connect(ctx.destination);
+          osc2.frequency.value = 659;
+          osc2.type = "sine";
+          gain2.gain.setValueAtTime(0.1, ctx.currentTime + 0.3);
+          gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.8);
+          osc2.start(ctx.currentTime + 0.3);
+          osc2.stop(ctx.currentTime + 1.8);
+        } catch {}
       } else {
-        playBeep();
+        const isSaved = hasMatch(alert.cities);
+        if (isSaved) {
+          playAlarm();
+        } else {
+          playBeep();
+        }
+        vibrate(isSaved);
       }
-      notify(alert, isSaved);
-      vibrate(isSaved);
+      notify(alert, hasMatch(alert.cities));
       // Track for idle display
       setRecentAlerts((prev) => [
         { title: alert.title, cities: alert.cities, time: new Date().toLocaleTimeString(t.locale) },
@@ -47,7 +79,7 @@ export default function TvView() {
       ].slice(0, 5));
       setTodayCount((n) => n + 1);
     },
-    [hasMatch, playAlarm, playBeep, notify, vibrate, t.locale]
+    [isEventEnded, hasMatch, playAlarm, playBeep, notify, vibrate, t.locale]
   );
 
   const { alerts, connected } = useAlertStream(onAlert);
