@@ -10,7 +10,8 @@ const ISRAEL_CENTER: [number, number] = [31.5, 34.9];
 
 const CATEGORY_COLORS: Record<number, string> = {
   1: "#ef4444", 2: "#f59e0b", 3: "#8b5cf6", 4: "#3b82f6",
-  5: "#f97316", 6: "#10b981", 7: "#dc2626", 13: "#6366f1",
+  5: "#f97316", 6: "#10b981", 7: "#dc2626", 10: "#eab308",
+  13: "#6366f1", 14: "#eab308",
 };
 
 const FALLBACK_RADIUS = 3000;

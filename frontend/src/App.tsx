@@ -46,8 +46,11 @@ function Dashboard() {
   useWakeLock();
 
   const isEventEnded = useCallback((alert: AlertData) => {
-    const t = (alert.title || "").toLowerCase();
-    return t.includes("הסתיים") || t.includes("האירוע הסתיים");
+    return (alert.title || "").includes("הסתיים");
+  }, []);
+
+  const isEarlyWarning = useCallback((alert: AlertData) => {
+    return (alert.title || "").includes("בדקות הקרובות");
   }, []);
 
   const onAlert = useCallback(
@@ -66,7 +69,6 @@ function Dashboard() {
           gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
           osc.start();
           osc.stop(ctx.currentTime + 1.5);
-          // Second gentle tone
           const osc2 = ctx.createOscillator();
           const gain2 = ctx.createGain();
           osc2.connect(gain2);
@@ -77,6 +79,22 @@ function Dashboard() {
           gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.8);
           osc2.start(ctx.currentTime + 0.3);
           osc2.stop(ctx.currentTime + 1.8);
+        } catch {}
+      } else if (isEarlyWarning(alert)) {
+        // Long steady 5-second warning beep for early warning
+        try {
+          const ctx = new AudioContext();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = 740;
+          osc.type = "sine";
+          gain.gain.setValueAtTime(0.25, ctx.currentTime);
+          gain.gain.setValueAtTime(0.25, ctx.currentTime + 4.5);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 5);
+          osc.start();
+          osc.stop(ctx.currentTime + 5);
         } catch {}
       } else {
         const isSaved = hasMatch(alert.cities);
@@ -90,7 +108,7 @@ function Dashboard() {
       notify(alert, hasMatch(alert.cities));
       speak(alert.title, alert.cities);
     },
-    [isEventEnded, hasMatch, playAlarm, playBeep, notify, vibrate, speak]
+    [isEventEnded, isEarlyWarning, hasMatch, playAlarm, playBeep, notify, vibrate, speak]
   );
 
   const { alerts, connected } = useAlertStream(onAlert);

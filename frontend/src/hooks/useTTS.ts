@@ -40,16 +40,31 @@ export function useTTS() {
       // Delay TTS so it doesn't compete with alarm sound
       setTimeout(() => {
         const text = `${title}. ${cities.join(", ")}`;
+        const voices = window.speechSynthesis.getVoices();
+        // Log all available voices for debugging
+        console.log("[TTS] Available voices:", voices.map((v) => `${v.name} (${v.lang})`));
+
+        // Priority: exact he-IL > he > name contains hebrew > Google he
+        const heVoice =
+          voices.find((v) => v.lang === "he-IL") ||
+          voices.find((v) => v.lang === "he") ||
+          voices.find((v) => v.lang.startsWith("he")) ||
+          voices.find((v) => v.name.toLowerCase().includes("hebrew"));
+
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = "he-IL";
+        if (heVoice) {
+          utterance.voice = heVoice;
+          utterance.lang = heVoice.lang;
+        } else {
+          // No Hebrew voice — still try, Chrome may handle he-IL via network
+          utterance.lang = "he-IL";
+        }
         utterance.rate = 0.9;
         utterance.volume = 1;
-        // Try to find a Hebrew voice, fallback to default
-        const voices = window.speechSynthesis.getVoices();
-        const heVoice = voices.find((v) => v.lang.startsWith("he"));
-        if (heVoice) utterance.voice = heVoice;
         window.speechSynthesis.cancel();
         window.speechSynthesis.speak(utterance);
+
+        console.log("[TTS]", heVoice ? `Using: ${heVoice.name} (${heVoice.lang})` : "No Hebrew voice — trying he-IL anyway");
       }, 1500);
     },
     [enabled]

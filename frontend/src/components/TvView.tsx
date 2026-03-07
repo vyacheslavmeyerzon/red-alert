@@ -31,8 +31,11 @@ export default function TvView() {
   const [todayCount, setTodayCount] = useState(0);
 
   const isEventEnded = useCallback((alert: AlertData) => {
-    const title = (alert.title || "").toLowerCase();
-    return title.includes("הסתיים") || title.includes("האירוע הסתיים");
+    return (alert.title || "").includes("הסתיים");
+  }, []);
+
+  const isEarlyWarning = useCallback((alert: AlertData) => {
+    return (alert.title || "").includes("בדקות הקרובות");
   }, []);
 
   const onAlert = useCallback(
@@ -62,6 +65,22 @@ export default function TvView() {
           osc2.start(ctx.currentTime + 0.3);
           osc2.stop(ctx.currentTime + 1.8);
         } catch {}
+      } else if (isEarlyWarning(alert)) {
+        // Long steady 5-second warning beep
+        try {
+          const ctx = new AudioContext();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = 740;
+          osc.type = "sine";
+          gain.gain.setValueAtTime(0.25, ctx.currentTime);
+          gain.gain.setValueAtTime(0.25, ctx.currentTime + 4.5);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 5);
+          osc.start();
+          osc.stop(ctx.currentTime + 5);
+        } catch {}
       } else {
         const isSaved = hasMatch(alert.cities);
         if (isSaved) {
@@ -79,7 +98,7 @@ export default function TvView() {
       ].slice(0, 5));
       setTodayCount((n) => n + 1);
     },
-    [isEventEnded, hasMatch, playAlarm, playBeep, notify, vibrate, t.locale]
+    [isEventEnded, isEarlyWarning, hasMatch, playAlarm, playBeep, notify, vibrate, t.locale]
   );
 
   const { alerts, connected } = useAlertStream(onAlert);

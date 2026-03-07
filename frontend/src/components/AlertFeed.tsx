@@ -11,6 +11,9 @@ const CATEGORY_COLORS: Record<number, string> = {
   5: "#f97316", // hostile aircraft - orange
   6: "#10b981", // hazmat - green
   7: "#dc2626", // terror - dark red
+  10: "#eab308", // early warning - yellow
+  13: "#6366f1", // special update - indigo
+  14: "#eab308", // early warning - yellow
 };
 
 const CATEGORY_ICONS: Record<number, string> = {
@@ -21,6 +24,9 @@ const CATEGORY_ICONS: Record<number, string> = {
   5: "✈️",
   6: "⚠️",
   7: "🔴",
+  10: "⏳",
+  13: "ℹ️",
+  14: "⏳",
 };
 
 interface Props {
