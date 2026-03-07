@@ -35,16 +35,20 @@ export default function StatsPanel({ stats, days, onDaysChange }: Props) {
   const { t } = useLang();
   const [hourly, setHourly] = useState<HourlyData[]>([]);
   const [timeline, setTimeline] = useState<{ day: string; count: number }[]>([]);
+  const [chartsLoading, setChartsLoading] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/alerts/stats/hourly?days=${days}`)
-      .then((r) => r.json())
-      .then((j) => setHourly(j.data || []))
-      .catch(() => {});
-    fetch(`/api/alerts/stats/timeline?days=${days}`)
-      .then((r) => r.json())
-      .then((j) => setTimeline(j.data || []))
-      .catch(() => {});
+    setChartsLoading(true);
+    Promise.all([
+      fetch(`/api/alerts/stats/hourly?days=${days}`)
+        .then((r) => r.json())
+        .then((j) => setHourly(j.data || []))
+        .catch(() => {}),
+      fetch(`/api/alerts/stats/timeline?days=${days}`)
+        .then((r) => r.json())
+        .then((j) => setTimeline(j.data || []))
+        .catch(() => {}),
+    ]).finally(() => setChartsLoading(false));
   }, [days]);
 
   const periodKeys: Record<number, string> = {
@@ -121,7 +125,9 @@ export default function StatsPanel({ stats, days, onDaysChange }: Props) {
         </div>
       </div>
 
-      {timeline.length > 0 && (
+      {chartsLoading && <p className="loading">{t.loadingData}</p>}
+
+      {!chartsLoading && timeline.length > 0 && (
         <div className="chart-container">
           <h3>{t.dailyAlerts}</h3>
           <ResponsiveContainer width="100%" height={180}>
@@ -143,7 +149,7 @@ export default function StatsPanel({ stats, days, onDaysChange }: Props) {
         </div>
       )}
 
-      {hourly.length > 0 && (
+      {!chartsLoading && hourly.length > 0 && (
         <div className="chart-container">
           <h3>{t.statsHourlyHeatmap}</h3>
           <div className="heatmap">

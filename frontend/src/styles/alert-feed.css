@@ -1,0 +1,185 @@
+/* ─── Alert Feed ──────────────────────────────── */
+.feed-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.feed-header h2 {
+  font-size: 1.1rem;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.status-dot.connected {
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+}
+
+.status-dot.disconnected {
+  background: var(--red-alert);
+  box-shadow: 0 0 8px var(--red-glow);
+}
+
+.no-alerts {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-secondary);
+}
+
+.no-alerts p {
+  font-size: 1rem;
+  margin-bottom: 8px;
+}
+
+.alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alert-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--red-alert);
+  border-radius: 8px;
+  padding: 12px;
+  animation: slideIn 0.3s ease-out;
+}
+
+.alert-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.alert-icon {
+  font-size: 1.2rem;
+}
+
+.alert-title {
+  flex: 1;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--red-alert);
+}
+
+.alert-time {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.alert-cities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* City carousel */
+.city-carousel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  width: 100%;
+}
+
+.city-carousel-slide {
+  animation: carouselFadeIn 0.35s ease;
+  flex: 1;
+}
+
+.city-carousel-counter {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@keyframes carouselFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.city-tag {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+}
+
+.shelter-banner {
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 8px;
+  animation: shelterFlash 1s ease-in-out 3;
+}
+
+@keyframes shelterFlash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.city-tag-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.shelter-badge {
+  font-size: 0.65rem;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.alert-desc {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* ─── Saved City Alert Highlighting ───────────── */
+.alert-card-saved {
+  border-inline-start-color: #dc2626 !important;
+  border-inline-start-width: 6px !important;
+  background: rgba(220, 38, 38, 0.08) !important;
+  animation: savedPulse 1s ease-in-out 5;
+}
+
+@keyframes savedPulse {
+  0%, 100% { background: rgba(220, 38, 38, 0.08); }
+  50% { background: rgba(220, 38, 38, 0.2); }
+}
+
+.saved-match-banner {
+  background: #dc2626;
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-align: center;
+  animation: shelterFlash 0.8s ease-in-out 5;
+}
+
+.city-tag-saved {
+  background: rgba(220, 38, 38, 0.3) !important;
+  color: #fff !important;
+  font-weight: 700;
+}

@@ -1,5 +1,6 @@
 import { useRef, useCallback } from "react";
 import { getSavedSound, playSoundById } from "../data/alertSounds";
+import { getAudioContext } from "../utils/audioContext";
 
 const ALARM_DURATION_MS = 20000;
 
@@ -34,7 +35,7 @@ export function useAlarm() {
 
   const playBeep = useCallback(() => {
     try {
-      const ctx = new AudioContext();
+      const ctx = getAudioContext();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);

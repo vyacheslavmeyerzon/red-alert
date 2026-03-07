@@ -15,24 +15,23 @@ async function init() {
     statusDot.className = "status-dot connected";
 
     if (alerts.length === 0) {
-      content.innerHTML = '<div class="no-alerts">אין התרעות פעילות</div>';
+      const noAlerts = document.createElement("div");
+      noAlerts.className = "no-alerts";
+      noAlerts.textContent = "אין התרעות פעילות";
+      content.appendChild(noAlerts);
     } else {
-      content.innerHTML = alerts
-        .map(
-          (a) => `
-        <div class="alert-card">
-          <div class="alert-title">${escapeHtml(a.title)}</div>
-          <div class="alert-cities">${escapeHtml(a.cities.join(" • "))}</div>
-          <div class="alert-time">${new Date(a.alerted_at).toLocaleTimeString("he-IL")}</div>
-        </div>
-      `
-        )
-        .join("");
+      for (const a of alerts) {
+        content.appendChild(buildAlertCard(a));
+      }
     }
   } catch {
     statusDot.className = "status-dot disconnected";
-    content.innerHTML =
-      '<div class="no-alerts" style="color:#ef4444">לא ניתן להתחבר לשרת</div>';
+    content.textContent = "";
+    const errDiv = document.createElement("div");
+    errDiv.className = "no-alerts";
+    errDiv.style.color = "#ef4444";
+    errDiv.textContent = "לא ניתן להתחבר לשרת";
+    content.appendChild(errDiv);
   }
 
   // Listen for real-time updates
@@ -41,13 +40,7 @@ async function init() {
     eventSource.addEventListener("alert", (event) => {
       try {
         const alert = JSON.parse(event.data);
-        const card = document.createElement("div");
-        card.className = "alert-card";
-        card.innerHTML = `
-          <div class="alert-title">${escapeHtml(alert.title)}</div>
-          <div class="alert-cities">${escapeHtml(alert.cities.join(" • "))}</div>
-          <div class="alert-time">${new Date().toLocaleTimeString("he-IL")}</div>
-        `;
+        const card = buildAlertCard(alert);
         // Remove "no alerts" message if present
         const noAlerts = content.querySelector(".no-alerts");
         if (noAlerts) noAlerts.remove();
@@ -61,10 +54,27 @@ async function init() {
   });
 }
 
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
+function buildAlertCard(a) {
+  const card = document.createElement("div");
+  card.className = "alert-card";
+
+  const title = document.createElement("div");
+  title.className = "alert-title";
+  title.textContent = a.title || "Red Alert";
+  card.appendChild(title);
+
+  const cities = document.createElement("div");
+  cities.className = "alert-cities";
+  const citiesArr = a.cities || a.data || [];
+  cities.textContent = Array.isArray(citiesArr) ? citiesArr.join(" \u2022 ") : "";
+  card.appendChild(cities);
+
+  const time = document.createElement("div");
+  time.className = "alert-time";
+  time.textContent = new Date(a.alerted_at || Date.now()).toLocaleTimeString("he-IL");
+  card.appendChild(time);
+
+  return card;
 }
 
 init();

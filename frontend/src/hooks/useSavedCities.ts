@@ -18,10 +18,9 @@ export function useSavedCities() {
 
   const addCity = useCallback((city: string) => {
     const trimmed = city.trim();
-    if (trimmed && !cities.includes(trimmed)) {
-      setCities((prev) => [...prev, trimmed]);
-    }
-  }, [cities]);
+    if (!trimmed) return;
+    setCities((prev) => prev.includes(trimmed) ? prev : [...prev, trimmed]);
+  }, []);
 
   const removeCity = useCallback((city: string) => {
     setCities((prev) => prev.filter((c) => c !== city));

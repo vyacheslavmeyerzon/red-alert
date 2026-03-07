@@ -40,52 +40,11 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-// Background SSE listener for push-like notifications
-let alertSource = null;
-
-function connectAlertStream() {
-  if (alertSource) {
-    alertSource.close();
-  }
-
-  try {
-    alertSource = new EventSource("/api/alerts/stream");
-
-    alertSource.addEventListener("alert", (event) => {
-      try {
-        const alert = JSON.parse(event.data);
-        const cities = Array.isArray(alert.cities) ? alert.cities.join(", ") : "";
-        self.registration.showNotification(alert.title || "Red Alert", {
-          body: cities,
-          icon: "/icon-192.png",
-          badge: "/icon-192.png",
-          tag: `alert-${alert.id}`,
-          renotify: true,
-          vibrate: [300, 100, 300, 100, 600],
-          data: { url: "/" },
-        });
-      } catch {}
-    });
-
-    alertSource.onerror = () => {
-      alertSource.close();
-      alertSource = null;
-      setTimeout(connectAlertStream, 5000);
-    };
-  } catch {}
-}
-
-// Start listening when SW activates
-self.addEventListener("activate", () => {
-  connectAlertStream();
-});
-
-// Re-connect on message from client
-self.addEventListener("message", (event) => {
-  if (event.data === "start-alerts") {
-    connectAlertStream();
-  }
-});
+// NOTE: SSE alert streaming is handled by the main page (useAlertStream hook).
+// Keeping SSE in the Service Worker is unreliable because the browser can
+// terminate the SW at any time, killing the connection silently with no
+// guaranteed way to reconnect. The main page's useAlertStream already has
+// robust reconnection logic and triggers notifications via useNotifications.
 
 // Click notification — open app
 self.addEventListener("notificationclick", (event) => {

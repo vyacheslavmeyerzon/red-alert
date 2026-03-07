@@ -6,15 +6,15 @@ from datetime import datetime, timedelta, timezone
 from typing import AsyncGenerator
 
 import redis.asyncio as aioredis
-from fastapi import FastAPI, Depends, Query, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, func, text
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from sse_starlette.sse import EventSourceResponse
 
 from app.config import settings
-from app.database import get_db, engine, Base
+from app.database import engine, Base
 from app.models import Alert
 from app.oref_client import fetch_history, CATEGORY_MAP
 from app.shelter_times import get_shelter_time, SHELTER_TIMES
@@ -25,11 +25,18 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 logger = logging.getLogger(__name__)
 
 
+SSE_HEARTBEAT_INTERVAL = 30  # seconds
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Create tables if they don't exist (fallback — init.sql is primary)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Create a shared Redis connection pool for SSE subscribers
+    redis_pool = aioredis.from_url(settings.redis_url, decode_responses=True)
+    app.state.redis_pool = redis_pool
 
     # Start background poller
     poller_task = asyncio.create_task(poll_loop())
@@ -42,6 +49,9 @@ async def lifespan(app: FastAPI):
         await poller_task
     except asyncio.CancelledError:
         pass
+
+    # Close shared Redis pool
+    await redis_pool.aclose()
 
 
 app = FastAPI(title="Red Alert Dashboard", version="1.0.0", lifespan=lifespan)
@@ -56,28 +66,42 @@ app.add_middleware(
 
 # ─── SSE Stream ───────────────────────────────────────────────
 
-async def _alert_generator() -> AsyncGenerator[dict, None]:
-    """Subscribe to Redis and yield alerts as SSE events."""
-    redis = aioredis.from_url(settings.redis_url)
-    pubsub = redis.pubsub()
+async def _alert_generator(request: Request) -> AsyncGenerator[dict, None]:
+    """Subscribe to Redis (shared pool) and yield alerts as SSE events.
+
+    Sends a keepalive comment every 30 seconds to prevent proxies / browsers
+    from treating the connection as stale.
+    """
+    redis_pool = request.app.state.redis_pool
+    pubsub = redis_pool.pubsub()
     await pubsub.subscribe(REDIS_CHANNEL)
 
     try:
-        async for message in pubsub.listen():
-            if message["type"] == "message":
+        while True:
+            # Wait for a message up to HEARTBEAT_INTERVAL seconds
+            message = await asyncio.wait_for(
+                pubsub.get_message(ignore_subscribe_messages=True, timeout=SSE_HEARTBEAT_INTERVAL),
+                timeout=SSE_HEARTBEAT_INTERVAL + 5,
+            )
+            if message is not None and message["type"] == "message":
                 data = message["data"]
                 if isinstance(data, bytes):
                     data = data.decode("utf-8")
                 yield {"event": "alert", "data": data}
+            else:
+                # No message within the interval — send keepalive comment
+                yield {"comment": "keepalive"}
+    except asyncio.CancelledError:
+        pass
     finally:
         await pubsub.unsubscribe(REDIS_CHANNEL)
-        await redis.aclose()
+        await pubsub.aclose()
 
 
 @app.get("/api/alerts/stream")
-async def alert_stream():
+async def alert_stream(request: Request):
     """SSE endpoint — real-time alert stream."""
-    return EventSourceResponse(_alert_generator())
+    return EventSourceResponse(_alert_generator(request))
 
 
 # ─── REST Endpoints ───────────────────────────────────────────
@@ -86,7 +110,7 @@ async def alert_stream():
 async def get_live_alerts():
     """Return the most recent alert (last 60 seconds)."""
     cutoff = datetime.now(timezone.utc) - timedelta(seconds=60)
-    async with engine.begin() as conn:
+    async with engine.connect() as conn:
         result = await conn.execute(
             select(Alert).where(Alert.alerted_at >= cutoff).order_by(Alert.alerted_at.desc())
         )
@@ -118,7 +142,7 @@ async def get_alert_history(
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
     offset = (page - 1) * limit
 
-    async with engine.begin() as conn:
+    async with engine.connect() as conn:
         query = select(Alert).where(Alert.alerted_at >= cutoff)
         count_query = select(func.count(Alert.id)).where(Alert.alerted_at >= cutoff)
 
@@ -156,7 +180,7 @@ async def get_alert_history(
 @app.get("/api/alerts/cities")
 async def get_cities(q: str = Query("", description="Search prefix")):
     """Return distinct city names, optionally filtered by prefix."""
-    async with engine.begin() as conn:
+    async with engine.connect() as conn:
         result = await conn.execute(
             text("""
                 SELECT DISTINCT city FROM alerts, unnest(cities) AS city
@@ -164,65 +188,68 @@ async def get_cities(q: str = Query("", description="Search prefix")):
                 ORDER BY city
                 LIMIT 50
             """),
-            {"pattern": f"%{q}%" if q else "%"},
+            {"pattern": f"%{q.replace('%', '').replace('_', '')}%" if q else "%"},
         )
         return [r.city for r in result.fetchall()]
 
 
 @app.get("/api/alerts/stats")
 async def get_alert_stats(days: int = Query(7, ge=1, le=90)):
-    """Aggregated alert statistics."""
+    """Aggregated alert statistics — single query with CTEs."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
-    async with engine.begin() as conn:
-        # Alerts per day
-        daily = (
-            await conn.execute(
-                text("""
+    async with engine.connect() as conn:
+        result = await conn.execute(
+            text("""
+                WITH filtered AS (
+                    SELECT * FROM alerts WHERE alerted_at >= :cutoff
+                ),
+                daily AS (
                     SELECT DATE(alerted_at) AS day, category, COUNT(*) AS count
-                    FROM alerts
-                    WHERE alerted_at >= :cutoff
+                    FROM filtered
                     GROUP BY DATE(alerted_at), category
                     ORDER BY day DESC
-                """),
-                {"cutoff": cutoff},
-            )
-        ).fetchall()
-
-        # Top cities
-        top_cities = (
-            await conn.execute(
-                text("""
-                    SELECT city, COUNT(*) as count
-                    FROM alerts, unnest(cities) AS city
-                    WHERE alerted_at >= :cutoff
+                ),
+                top_cities AS (
+                    SELECT city, COUNT(*) AS count
+                    FROM filtered, unnest(cities) AS city
                     GROUP BY city
                     ORDER BY count DESC
                     LIMIT 20
-                """),
-                {"cutoff": cutoff},
-            )
-        ).fetchall()
+                ),
+                total AS (
+                    SELECT COUNT(*) AS cnt FROM filtered
+                )
+                SELECT 'daily' AS src, day::text, category::int, count::int, NULL AS city
+                FROM daily
+                UNION ALL
+                SELECT 'city', NULL, NULL, count::int, city
+                FROM top_cities
+                UNION ALL
+                SELECT 'total', NULL, NULL, cnt::int, NULL
+                FROM total
+            """),
+            {"cutoff": cutoff},
+        )
+        rows = result.fetchall()
 
-        # Total count
-        total = (
-            await conn.execute(
-                text("SELECT COUNT(*) FROM alerts WHERE alerted_at >= :cutoff"),
-                {"cutoff": cutoff},
-            )
-        ).scalar()
+    daily = []
+    top_cities = []
+    total = 0
+    for r in rows:
+        if r.src == "daily":
+            daily.append({"day": r.day, "category": r.category, "count": r.count})
+        elif r.src == "city":
+            top_cities.append({"city": r.city, "count": r.count})
+        elif r.src == "total":
+            total = r.count
 
     return {
         "success": True,
         "data": {
             "total_alerts": total,
-            "daily": [
-                {"day": str(r.day), "category": r.category, "count": r.count}
-                for r in daily
-            ],
-            "top_cities": [
-                {"city": r.city, "count": r.count} for r in top_cities
-            ],
+            "daily": daily,
+            "top_cities": top_cities,
             "categories": CATEGORY_MAP,
         },
     }
@@ -232,7 +259,7 @@ async def get_alert_stats(days: int = Query(7, ge=1, le=90)):
 async def get_hourly_stats(days: int = Query(7, ge=1, le=90)):
     """Hourly heatmap data — alerts per hour of day per day of week."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    async with engine.begin() as conn:
+    async with engine.connect() as conn:
         rows = (
             await conn.execute(
                 text("""
@@ -257,7 +284,7 @@ async def get_hourly_stats(days: int = Query(7, ge=1, le=90)):
 async def get_timeline_stats(days: int = Query(30, ge=1, le=365)):
     """Daily alert counts for timeline chart."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    async with engine.begin() as conn:
+    async with engine.connect() as conn:
         rows = (
             await conn.execute(
                 text("""
@@ -286,11 +313,11 @@ async def export_alerts(
     import csv
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    async with engine.begin() as conn:
+    async with engine.connect() as conn:
         query = select(Alert).where(Alert.alerted_at >= cutoff)
         if category is not None:
             query = query.where(Alert.category == category)
-        query = query.order_by(Alert.alerted_at.desc())
+        query = query.order_by(Alert.alerted_at.desc()).limit(10000)
         rows = (await conn.execute(query)).fetchall()
 
     output = io.StringIO()

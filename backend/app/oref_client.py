@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import datetime, timezone
+from typing import Any
 
 import httpx
 
@@ -56,7 +57,11 @@ async def fetch_active_alerts() -> dict | None:
             body = _strip_bom(resp.text)
             if not body:
                 return None
-            return json.loads(body)
+            data = json.loads(body)
+            if not isinstance(data, dict) or "data" not in data:
+                logger.warning("Oref API unexpected format: %s", type(data))
+                return None
+            return data
         except httpx.HTTPStatusError as e:
             logger.warning("Oref API HTTP error: %s", e.response.status_code)
             return None
@@ -76,8 +81,8 @@ async def fetch_history() -> list[dict]:
         # First visit the main page to get cookies
         try:
             await client.get("https://www.oref.org.il/12481-he/Pakar.aspx", headers=OREF_HEADERS)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Cookie pre-fetch failed: %s", e)
 
         for url in endpoints:
             try:
@@ -121,20 +126,23 @@ DEMO_ALERTS = [
     },
 ]
 
+import asyncio
+import random
+
 _demo_index = 0
+_demo_lock = asyncio.Lock()
 
 
 async def fetch_demo_alert() -> dict | None:
     """Cycle through demo alerts for testing without Oref access."""
     global _demo_index
-    import asyncio
-    import random
 
     # Return an alert ~30% of the time to simulate real patterns
     if random.random() > 0.3:
         return None
 
-    alert = DEMO_ALERTS[_demo_index % len(DEMO_ALERTS)].copy()
-    alert["id"] = f"demo-{datetime.now(timezone.utc).timestamp():.0f}"
-    _demo_index += 1
+    async with _demo_lock:
+        alert = DEMO_ALERTS[_demo_index % len(DEMO_ALERTS)].copy()
+        alert["id"] = f"demo-{datetime.now(timezone.utc).timestamp():.0f}"
+        _demo_index += 1
     return alert

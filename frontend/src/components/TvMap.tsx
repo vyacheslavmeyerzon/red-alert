@@ -2,8 +2,8 @@ import { MapContainer, TileLayer, Circle, GeoJSON as LeafletGeoJSON, Marker, Pop
 import L from "leaflet";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AlertData } from "../types/alert";
-import { CITY_COORDS } from "./AlertMap";
-import { getShelterTime, formatShelterTime, shelterUrgencyColor } from "../data/shelterTimes";
+import { resolveCoords, findPolygon, loadPolygons } from "../utils/mapUtils";
+import AlertPopupContent from "./AlertPopup";
 import "leaflet/dist/leaflet.css";
 
 const ISRAEL_CENTER: [number, number] = [31.5, 34.9];
@@ -27,55 +27,10 @@ const droneIcon = new L.DivIcon({
   iconAnchor: [16, 16],
 });
 
-function resolveCoords(city: string): [number, number] | null {
-  if (CITY_COORDS[city]) return CITY_COORDS[city];
-  const key = Object.keys(CITY_COORDS).find(
-    (k) => city.includes(k) || k.includes(city)
-  );
-  return key ? CITY_COORDS[key] : null;
-}
-
-function normalizeName(name: string): string {
-  return name.replace(/[-–־׳'"]/g, " ").replace(/\s+/g, " ").trim();
-}
-
 interface ThreatZone {
   city: string;
   coords: [number, number];
   alert: AlertData;
-}
-
-// Polygon cache
-let polyCache: GeoJSON.FeatureCollection | null = null;
-let polyLoading = false;
-const polyCbs: Array<(d: GeoJSON.FeatureCollection) => void> = [];
-
-function loadPolygons(cb: (d: GeoJSON.FeatureCollection) => void) {
-  if (polyCache) { cb(polyCache); return; }
-  polyCbs.push(cb);
-  if (polyLoading) return;
-  polyLoading = true;
-  fetch("/israel-polygons.json")
-    .then((r) => r.json())
-    .then((d: GeoJSON.FeatureCollection) => {
-      polyCache = d;
-      for (const fn of polyCbs) fn(d);
-      polyCbs.length = 0;
-    })
-    .catch(() => { polyLoading = false; });
-}
-
-function findPolygon(city: string, polygons: GeoJSON.FeatureCollection): GeoJSON.Feature | null {
-  const norm = normalizeName(city);
-  let f = polygons.features.find((f) => f.properties?.name === city);
-  if (f) return f;
-  f = polygons.features.find((f) => normalizeName(f.properties?.name || "") === norm);
-  if (f) return f;
-  f = polygons.features.find((f) => {
-    const pn = normalizeName(f.properties?.name || "");
-    return pn.includes(norm) || norm.includes(pn);
-  });
-  return f || null;
 }
 
 function ThreatZones({ alerts }: { alerts: AlertData[] }) {
@@ -148,32 +103,7 @@ function ThreatZones({ alerts }: { alerts: AlertData[] }) {
             }}
           >
             <Popup>
-              <div style={{ direction: "rtl", textAlign: "right", minWidth: 180 }}>
-                <div style={{
-                  background: color, color: "#fff", padding: "4px 8px",
-                  borderRadius: 4, marginBottom: 6, fontWeight: 700, fontSize: 13,
-                }}>
-                  🔴 אזעקה פעילה
-                </div>
-                <strong>{z.alert.title}</strong><br />
-                <span style={{ fontSize: 14 }}>{z.city}</span><br />
-                <small style={{ color: "#666" }}>
-                  {new Date(z.alert.alerted_at).toLocaleTimeString("he-IL")}
-                </small>
-                {(() => {
-                  if ((z.alert.title || "").includes("הסתיים")) return null;
-                  const shelter = getShelterTime(z.city);
-                  if (shelter === null) return null;
-                  return (
-                    <div style={{
-                      marginTop: 6, padding: "5px 8px", background: shelterUrgencyColor(shelter),
-                      borderRadius: 4, fontSize: 13, fontWeight: 700, color: "#fff", textAlign: "center",
-                    }}>
-                      🛡️ זמן מיגון: {formatShelterTime(shelter)}
-                    </div>
-                  );
-                })()}
-              </div>
+              <AlertPopupContent city={z.city} alert={z.alert} color={color} />
             </Popup>
           </LeafletGeoJSON>
         );
@@ -197,32 +127,7 @@ function ThreatZones({ alerts }: { alerts: AlertData[] }) {
             }}
           >
             <Popup>
-              <div style={{ direction: "rtl", textAlign: "right", minWidth: 180 }}>
-                <div style={{
-                  background: color, color: "#fff", padding: "4px 8px",
-                  borderRadius: 4, marginBottom: 6, fontWeight: 700, fontSize: 13,
-                }}>
-                  🔴 אזעקה פעילה
-                </div>
-                <strong>{z.alert.title}</strong><br />
-                <span style={{ fontSize: 14 }}>{z.city}</span><br />
-                <small style={{ color: "#666" }}>
-                  {new Date(z.alert.alerted_at).toLocaleTimeString("he-IL")}
-                </small>
-                {(() => {
-                  if ((z.alert.title || "").includes("הסתיים")) return null;
-                  const shelter = getShelterTime(z.city);
-                  if (shelter === null) return null;
-                  return (
-                    <div style={{
-                      marginTop: 6, padding: "5px 8px", background: shelterUrgencyColor(shelter),
-                      borderRadius: 4, fontSize: 13, fontWeight: 700, color: "#fff", textAlign: "center",
-                    }}>
-                      🛡️ זמן מיגון: {formatShelterTime(shelter)}
-                    </div>
-                  );
-                })()}
-              </div>
+              <AlertPopupContent city={z.city} alert={z.alert} color={color} />
             </Popup>
           </Circle>
         );

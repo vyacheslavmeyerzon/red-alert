@@ -15,15 +15,7 @@
     <script type="module" src="/src/main.tsx"></script>
     <script>
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/sw.js").then(function(reg) {
-          reg.active && reg.active.postMessage("start-alerts");
-          reg.addEventListener("updatefound", function() {
-            var w = reg.installing;
-            if (w) w.addEventListener("statechange", function() {
-              if (w.state === "activated") w.postMessage("start-alerts");
-            });
-          });
-        });
+        navigator.serviceWorker.register("/sw.js");
       }
     </script>
   </body>

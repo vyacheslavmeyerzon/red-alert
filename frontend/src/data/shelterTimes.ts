@@ -42,10 +42,13 @@ export const SHELTER_TIMES: Record<string, number> = {
   "מצפה רמון": 180, "אילת": 180,
 };
 
+const shelterMap = new Map(Object.entries(SHELTER_TIMES));
+
 export function getShelterTime(city: string): number | null {
-  if (SHELTER_TIMES[city] !== undefined) return SHELTER_TIMES[city];
-  // Partial match
-  for (const [key, val] of Object.entries(SHELTER_TIMES)) {
+  const exact = shelterMap.get(city);
+  if (exact !== undefined) return exact;
+  // Partial match fallback (only for cities not in the map)
+  for (const [key, val] of shelterMap) {
     if (city.includes(key) || key.includes(city)) return val;
   }
   return null;

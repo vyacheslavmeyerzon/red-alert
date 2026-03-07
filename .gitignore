@@ -21,9 +21,13 @@ host-ip.txt
 
 # Internal
 checklist.md
+checklist-2.md
 /TzvAdom.mp3
 
 # OS
 .DS_Store
 Thumbs.db
 *.swp
+
+# code-review
+codereview-372025.md

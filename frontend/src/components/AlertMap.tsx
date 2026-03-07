@@ -3,7 +3,9 @@ import Map, { Source, Layer, Marker, Popup, type MapRef } from "react-map-gl/map
 import "maplibre-gl/dist/maplibre-gl.css";
 import React from "react";
 import type { AlertData } from "../types/alert";
-import { getShelterTime, formatShelterTime, shelterUrgencyColor } from "../data/shelterTimes";
+import { getShelterTime } from "../data/shelterTimes";
+import { resolveCoords, findPolygon, loadPolygons } from "../utils/mapUtils";
+import AlertPopupContent from "./AlertPopup";
 
 // Approximate coordinates for Israeli cities/regions
 export const CITY_COORDS: Record<string, [number, number]> = {
@@ -133,18 +135,11 @@ const MAP_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.j
 
 const CATEGORY_COLORS: Record<number, string> = {
   1: "#ef4444", 2: "#f59e0b", 3: "#8b5cf6", 4: "#3b82f6",
-  5: "#f97316", 6: "#10b981", 7: "#dc2626", 13: "#6366f1",
+  5: "#f97316", 6: "#10b981", 7: "#dc2626", 10: "#eab308",
+  13: "#6366f1", 14: "#eab308",
 };
 
 const FALLBACK_RADIUS = 3000;
-
-function resolveCoords(city: string): [number, number] | null {
-  if (CITY_COORDS[city]) return CITY_COORDS[city];
-  const key = Object.keys(CITY_COORDS).find(
-    (k) => city.includes(k) || k.includes(city)
-  );
-  return key ? CITY_COORDS[key] : null;
-}
 
 /** Create a GeoJSON circle polygon (fallback when no real polygon). */
 function createCircle(lat: number, lng: number, radiusMeters: number, points = 64, color = "#ef4444"): GeoJSON.Feature {
@@ -159,11 +154,6 @@ function createCircle(lat: number, lng: number, radiusMeters: number, points = 6
   return { type: "Feature", geometry: { type: "Polygon", coordinates: [coords] }, properties: { color } };
 }
 
-// Normalize Hebrew name for matching (remove dashes, maqaf, etc.)
-function normalizeName(name: string): string {
-  return name.replace(/[-–־׳'"]/g, " ").replace(/\s+/g, " ").trim();
-}
-
 interface ThreatZone {
   city: string;
   coords: [number, number];
@@ -174,56 +164,25 @@ interface Props {
   alerts: AlertData[];
 }
 
-// Polygon data cache
-let polygonCache: GeoJSON.FeatureCollection | null = null;
-let polygonLoading = false;
-const polygonCallbacks: Array<(data: GeoJSON.FeatureCollection) => void> = [];
-
-function loadPolygons(cb: (data: GeoJSON.FeatureCollection) => void) {
-  if (polygonCache) { cb(polygonCache); return; }
-  polygonCallbacks.push(cb);
-  if (polygonLoading) return;
-  polygonLoading = true;
-  fetch("/israel-polygons.json")
-    .then((r) => r.json())
-    .then((data: GeoJSON.FeatureCollection) => {
-      polygonCache = data;
-      for (const fn of polygonCallbacks) fn(data);
-      polygonCallbacks.length = 0;
-    })
-    .catch(() => {
-      polygonLoading = false;
-    });
-}
-
-function findPolygon(city: string, polygons: GeoJSON.FeatureCollection): GeoJSON.Feature | null {
-  const norm = normalizeName(city);
-  // Exact match
-  let feature = polygons.features.find((f) => f.properties?.name === city);
-  if (feature) return feature;
-  // Normalized match
-  feature = polygons.features.find((f) => normalizeName(f.properties?.name || "") === norm);
-  if (feature) return feature;
-  // Partial match
-  feature = polygons.features.find((f) => {
-    const pName = normalizeName(f.properties?.name || "");
-    return pName.includes(norm) || norm.includes(pName);
-  });
-  return feature || null;
-}
-
-function ShelterCountdown({ city }: { city: string }) {
+function ShelterCountdown({ city, alertedAt }: { city: string; alertedAt: string }) {
   const seconds = getShelterTime(city);
-  const [elapsed, setElapsed] = React.useState(0);
+
+  const calcRemaining = React.useCallback(() => {
+    if (seconds === null) return 0;
+    const elapsed = Math.floor((Date.now() - new Date(alertedAt).getTime()) / 1000);
+    return Math.max(0, seconds - elapsed);
+  }, [seconds, alertedAt]);
+
+  const [remaining, setRemaining] = React.useState(calcRemaining);
 
   React.useEffect(() => {
     if (seconds === null) return;
-    const id = setInterval(() => setElapsed((e) => e + 1), 1000);
+    setRemaining(calcRemaining());
+    const id = setInterval(() => setRemaining(calcRemaining()), 1000);
     return () => clearInterval(id);
-  }, [seconds]);
+  }, [seconds, alertedAt, calcRemaining]);
 
   if (seconds === null) return null;
-  const remaining = Math.max(0, seconds - elapsed);
   if (remaining <= 0) return <span className="shelter-countdown expired">00:00</span>;
   const m = Math.floor(remaining / 60);
   const s = remaining % 60;
@@ -352,7 +311,7 @@ export default function AlertMap({ alerts }: Props) {
               ) : (
                 <div className="alert-dot-marker" style={{ background: catColor, boxShadow: `0 0 12px ${catColor}cc` }} />
               )}
-              {!(z.alert.title || "").includes("הסתיים") && <ShelterCountdown city={z.city} />}
+              {!(z.alert.title || "").includes("הסתיים") && <ShelterCountdown city={z.city} alertedAt={z.alert.alerted_at} />}
             </div>
           </Marker>
         );
@@ -368,41 +327,12 @@ export default function AlertMap({ alerts }: Props) {
           closeOnClick={false}
           maxWidth="280px"
         >
-          <div style={{ direction: "rtl", textAlign: "right" }}>
-            <div style={{
-              background: popupInfo.alert.category === 5 ? "#f97316" : "#ef4444",
-              color: "#fff", padding: "4px 8px", borderRadius: 4, marginBottom: 6,
-              fontWeight: 700, fontSize: 13,
-            }}>
-              {popupInfo.alert.category === 5 ? "✈️ חדירת כלי טיס עוין" : "🔴 אזעקה פעילה"}
-            </div>
-            <strong>{popupInfo.alert.title}</strong><br />
-            <span style={{ fontSize: 14 }}>{popupInfo.city}</span><br />
-            <small style={{ color: "#666" }}>
-              {new Date(popupInfo.alert.alerted_at).toLocaleTimeString("he-IL")}
-            </small>
-            {(() => {
-              if ((popupInfo.alert.title || "").includes("הסתיים")) return null;
-              const shelter = getShelterTime(popupInfo.city);
-              if (shelter === null) return null;
-              return (
-                <div style={{
-                  marginTop: 6, padding: "5px 8px", background: shelterUrgencyColor(shelter),
-                  borderRadius: 4, fontSize: 13, fontWeight: 700, color: "#fff", textAlign: "center",
-                }}>
-                  🛡️ זמן מיגון: {formatShelterTime(shelter)}
-                </div>
-              );
-            })()}
-            {popupInfo.alert.description && (
-              <div style={{
-                marginTop: 6, padding: "4px 6px", background: "#fff3f3",
-                borderRadius: 4, fontSize: 12,
-              }}>
-                {popupInfo.alert.description}
-              </div>
-            )}
-          </div>
+          <AlertPopupContent
+            city={popupInfo.city}
+            alert={popupInfo.alert}
+            color={CATEGORY_COLORS[popupInfo.alert.category] || "#ef4444"}
+            showDescription
+          />
         </Popup>
       )}
     </Map>

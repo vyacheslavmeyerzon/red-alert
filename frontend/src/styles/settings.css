@@ -1,0 +1,416 @@
+/* ─── Saved Cities Settings ───────────────────── */
+.saved-cities h3 {
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+}
+
+.saved-cities-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+
+.saved-cities-search {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.saved-cities-empty {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 20px;
+}
+
+.saved-cities-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.saved-city-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 0.85rem;
+}
+
+.saved-city-tag button {
+  background: none;
+  border: none;
+  color: #fca5a5;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0;
+  opacity: 0.6;
+}
+
+.saved-city-tag button:hover {
+  opacity: 1;
+  color: #fff;
+}
+
+/* ─── Language Setting ───────────────────────── */
+.language-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.language-setting-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.lang-toggle-group {
+  display: flex;
+  gap: 4px;
+}
+
+.lang-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 5px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.lang-btn:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.lang-btn.active {
+  background: var(--red-alert);
+  border-color: var(--red-alert);
+  color: white;
+}
+
+/* ─── Sound Settings ─────────────────────────── */
+.sound-settings {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.sound-settings h3 {
+  margin: 0 0 4px 0;
+  font-size: 1rem;
+}
+.sound-settings-desc {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin: 0 0 10px 0;
+}
+.sound-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sound-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+.sound-option:hover {
+  background: rgba(255,255,255,0.03);
+}
+.sound-option-active {
+  border-color: var(--red-alert);
+  background: rgba(239, 68, 68, 0.08);
+}
+.sound-option label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+.sound-option input[type="radio"] {
+  accent-color: var(--red-alert);
+}
+.sound-preview-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.sound-preview-btn:hover {
+  border-color: var(--red-alert);
+  color: var(--red-alert);
+}
+
+/* ─── TTS Setting ────────────────────────────── */
+.tts-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.tts-setting h3 {
+  margin: 0 0 4px 0;
+  font-size: 1rem;
+}
+.tts-setting-desc {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin: 0;
+}
+.tts-toggle {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 6px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.tts-toggle:hover {
+  border-color: var(--text-secondary);
+}
+.tts-toggle.active {
+  background: var(--red-alert);
+  border-color: var(--red-alert);
+  color: white;
+}
+
+/* ─── PWA Install ────────────────────────────── */
+.pwa-install-section {
+  padding: 12px 0;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+}
+.pwa-install-btn {
+  background: var(--red-alert);
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
+.pwa-install-btn:hover {
+  background: #dc2626;
+  transform: scale(1.02);
+}
+.pwa-installed {
+  color: #22c55e;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* ─── Cast Panel ─────────────────────────────── */
+.cast-panel {
+  padding: 16px;
+}
+
+.cast-panel h3 {
+  margin-bottom: 8px;
+}
+
+.cast-desc {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.cast-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cast-method {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.cast-method h4 {
+  margin-bottom: 10px;
+  color: var(--text-primary);
+}
+
+.cast-method small {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.cast-btn {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  background: #3b82f6;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cast-btn:hover {
+  background: #2563eb;
+}
+
+.cast-btn.casting {
+  background: var(--red-alert);
+  animation: tvPulse 1.5s ease-in-out infinite;
+}
+
+.tv-url-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.tv-url-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.tv-url-box code {
+  flex: 1;
+  font-size: 0.85rem;
+  color: #60a5fa;
+  word-break: break-all;
+  direction: ltr;
+  text-align: left;
+}
+
+.copy-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.copy-btn:hover {
+  background: var(--border);
+}
+
+.cast-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tv-url-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.redetect-btn,
+.manual-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.redetect-btn:hover,
+.manual-btn:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.manual-ip-form {
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.manual-ip-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.manual-ip-desc code {
+  background: var(--bg-primary);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  color: #60a5fa;
+}
+
+.manual-ip-input {
+  display: flex;
+  gap: 8px;
+}
+
+.manual-ip-input input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: monospace;
+}
+
+.manual-ip-input button {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 4px;
+  background: #3b82f6;
+  color: #fff;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.manual-ip-input button:hover {
+  background: #2563eb;
+}

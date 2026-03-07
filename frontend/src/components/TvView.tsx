@@ -5,6 +5,7 @@ import { useSavedCities } from "../hooks/useSavedCities";
 import { useWakeLock } from "../hooks/useWakeLock";
 import { useNotifications } from "../hooks/useNotifications";
 import { useVibrate } from "../hooks/useVibrate";
+import { useAlertSoundHandler } from "../hooks/useAlertSoundHandler";
 import CityCarousel from "./CityCarousel";
 import { useCallback, useEffect, useState } from "react";
 import { getShelterTime, formatShelterTime, shelterUrgencyColor } from "../data/shelterTimes";
@@ -30,67 +31,13 @@ export default function TvView() {
   const [recentAlerts, setRecentAlerts] = useState<RecentAlert[]>([]);
   const [todayCount, setTodayCount] = useState(0);
 
-  const isEventEnded = useCallback((alert: AlertData) => {
-    return (alert.title || "").includes("הסתיים");
-  }, []);
-
-  const isEarlyWarning = useCallback((alert: AlertData) => {
-    return (alert.title || "").includes("בדקות הקרובות");
-  }, []);
+  const { onAlert: handleAlertSound, isEventEnded } = useAlertSoundHandler({
+    hasMatch, playAlarm, playBeep, notify, vibrate,
+  });
 
   const onAlert = useCallback(
     (alert: AlertData) => {
-      if (isEventEnded(alert)) {
-        // Soft chime for "event ended"
-        try {
-          const ctx = new AudioContext();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.frequency.value = 523;
-          osc.type = "sine";
-          gain.gain.setValueAtTime(0.15, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
-          osc.start();
-          osc.stop(ctx.currentTime + 1.5);
-          const osc2 = ctx.createOscillator();
-          const gain2 = ctx.createGain();
-          osc2.connect(gain2);
-          gain2.connect(ctx.destination);
-          osc2.frequency.value = 659;
-          osc2.type = "sine";
-          gain2.gain.setValueAtTime(0.1, ctx.currentTime + 0.3);
-          gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.8);
-          osc2.start(ctx.currentTime + 0.3);
-          osc2.stop(ctx.currentTime + 1.8);
-        } catch {}
-      } else if (isEarlyWarning(alert)) {
-        // Long steady 5-second warning beep
-        try {
-          const ctx = new AudioContext();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.frequency.value = 740;
-          osc.type = "sine";
-          gain.gain.setValueAtTime(0.25, ctx.currentTime);
-          gain.gain.setValueAtTime(0.25, ctx.currentTime + 4.5);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 5);
-          osc.start();
-          osc.stop(ctx.currentTime + 5);
-        } catch {}
-      } else {
-        const isSaved = hasMatch(alert.cities);
-        if (isSaved) {
-          playAlarm();
-        } else {
-          playBeep();
-        }
-        vibrate(isSaved);
-      }
-      notify(alert, hasMatch(alert.cities));
+      handleAlertSound(alert);
       // Track for idle display
       setRecentAlerts((prev) => [
         { title: alert.title, cities: alert.cities, time: new Date().toLocaleTimeString(t.locale) },
@@ -98,7 +45,7 @@ export default function TvView() {
       ].slice(0, 5));
       setTodayCount((n) => n + 1);
     },
-    [isEventEnded, isEarlyWarning, hasMatch, playAlarm, playBeep, notify, vibrate, t.locale]
+    [handleAlertSound, t.locale]
   );
 
   const { alerts, connected } = useAlertStream(onAlert);
@@ -109,7 +56,7 @@ export default function TvView() {
     return () => clearInterval(id);
   }, []);
 
-  const activeAlerts = alerts.filter((a) => !(a.title || "").includes("הסתיים"));
+  const activeAlerts = alerts.filter((a) => !isEventEnded(a));
   const allCities = activeAlerts.flatMap((a) => a.cities);
   const shelterTimes = allCities.map(getShelterTime).filter((t): t is number => t !== null);
   const minShelter = shelterTimes.length > 0 ? Math.min(...shelterTimes) : null;

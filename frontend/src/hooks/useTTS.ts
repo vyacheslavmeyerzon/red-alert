@@ -20,10 +20,12 @@ export function useTTS() {
     document.addEventListener("click", unlock);
     // Force Chrome to load voice list
     window.speechSynthesis?.getVoices();
-    window.speechSynthesis?.addEventListener?.("voiceschanged", () => {
-      window.speechSynthesis.getVoices();
-    });
-    return () => document.removeEventListener("click", unlock);
+    const onVoicesChanged = () => window.speechSynthesis.getVoices();
+    window.speechSynthesis?.addEventListener?.("voiceschanged", onVoicesChanged);
+    return () => {
+      document.removeEventListener("click", unlock);
+      window.speechSynthesis?.removeEventListener?.("voiceschanged", onVoicesChanged);
+    };
   }, []);
 
   const toggle = useCallback(() => {
@@ -41,8 +43,6 @@ export function useTTS() {
       setTimeout(() => {
         const text = `${title}. ${cities.join(", ")}`;
         const voices = window.speechSynthesis.getVoices();
-        // Log all available voices for debugging
-        console.log("[TTS] Available voices:", voices.map((v) => `${v.name} (${v.lang})`));
 
         // Priority: exact he-IL > he > name contains hebrew > Google he
         const heVoice =
@@ -64,7 +64,6 @@ export function useTTS() {
         window.speechSynthesis.cancel();
         window.speechSynthesis.speak(utterance);
 
-        console.log("[TTS]", heVoice ? `Using: ${heVoice.name} (${heVoice.lang})` : "No Hebrew voice — trying he-IL anyway");
       }, 1500);
     },
     [enabled]

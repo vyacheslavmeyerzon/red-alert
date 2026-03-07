@@ -18,7 +18,8 @@ export function useNotifications() {
 
   const notify = (alert: AlertData, isSaved: boolean) => {
     if (permissionRef.current !== "granted") return;
-    if (document.visibilityState === "visible") return; // Only when tab is hidden
+    // For saved cities, always show notification (emergency); otherwise only when tab hidden
+    if (!isSaved && document.visibilityState === "visible") return;
 
     try {
       const title = isSaved
@@ -27,7 +28,7 @@ export function useNotifications() {
       const body = alert.cities.join(", ");
       const n = new Notification(title, {
         body,
-        icon: "/TzvAdom.mp3", // browsers ignore non-image, but it won't break
+        icon: "/icon-192.png",
         tag: `alert-${alert.id}`,
         requireInteraction: isSaved,
       });

@@ -1,0 +1,98 @@
+/* ─── Responsive ──────────────────────────────── */
+@media (max-width: 768px) {
+  .app-main {
+    flex-direction: column;
+  }
+
+  .map-section {
+    height: 40vh;
+  }
+
+  .sidebar {
+    width: 100%;
+    border-inline-start: none;
+    border-top: 1px solid var(--border);
+  }
+}
+
+/* ─── Mobile Responsive ──────────────────────── */
+@media (max-width: 768px) {
+  .app-header {
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  html[dir="rtl"] .app-header {
+    flex-direction: column;
+  }
+
+  .header-right h1 {
+    font-size: 1rem;
+  }
+
+  .header-subtitle {
+    font-size: 0.7rem;
+  }
+
+  .tab-nav {
+    width: 100%;
+    display: flex;
+  }
+
+  .tab-nav button {
+    flex: 1;
+    font-size: 0.75rem;
+    padding: 6px 4px;
+  }
+
+  .app-main {
+    flex-direction: column !important;
+  }
+
+  .map-section {
+    height: 35vh !important;
+    min-height: 200px;
+  }
+
+  .sidebar {
+    width: 100% !important;
+    border-inline-start: none !important;
+    border-right: none !important;
+    border-top: 1px solid var(--border);
+    max-height: calc(65vh - 60px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  html[dir="ltr"] .sidebar {
+    order: unset;
+    border-right: none;
+  }
+
+  .stats-summary {
+    flex-direction: row;
+    gap: 6px;
+  }
+
+  .stat-card {
+    padding: 8px;
+  }
+
+  .stat-value {
+    font-size: 1.2rem;
+  }
+
+  .history-table {
+    font-size: 0.7rem;
+  }
+
+  .history-filters {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .chart-container {
+    overflow-x: auto;
+  }
+}

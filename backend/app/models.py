@@ -17,7 +17,7 @@ class Alert(Base):
     category_desc: Mapped[str | None] = mapped_column(String(255))
     title: Mapped[str | None] = mapped_column(String(512))
     description: Mapped[str | None] = mapped_column(Text)
-    cities: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=[])
+    cities: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=list)
     raw_json: Mapped[dict | None] = mapped_column(JSONB)
     alerted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(

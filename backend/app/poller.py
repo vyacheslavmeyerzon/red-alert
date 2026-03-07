@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import logging
 from datetime import datetime, timezone
@@ -62,7 +63,8 @@ async def _store_alert(alert_data: dict) -> bool:
 
 async def _store_history_alert(item: dict) -> bool:
     """Store a single history alert item from the Oref history endpoint."""
-    oref_id = f"hist-{item.get('alertDate', '')}-{hash(item.get('data', ''))}"
+    data_hash = hashlib.sha256(item.get("data", "").encode()).hexdigest()[:12]
+    oref_id = f"hist-{item.get('alertDate', '')}-{data_hash}"
     cat = int(item.get("category", 1))
     cities = [c.strip() for c in item.get("data", "").split(",") if c.strip()]
     title = item.get("title") or item.get("category_desc", "")
@@ -118,10 +120,18 @@ async def import_history():
         logger.exception("History import failed")
 
 
+REDIS_RECONNECT_DELAY = 5  # seconds to wait before reconnecting
+
+
+async def _get_redis() -> aioredis.Redis:
+    """Create a new Redis connection."""
+    return aioredis.from_url(settings.redis_url)
+
+
 async def poll_loop():
     """Main polling loop — runs as a background task."""
     interval = settings.poll_interval_ms / 1000.0
-    redis = aioredis.from_url(settings.redis_url)
+    redis: aioredis.Redis | None = None
 
     # Import history on first start
     await import_history()
@@ -140,10 +150,26 @@ async def poll_loop():
             if alert_data:
                 is_new = await _store_alert(alert_data)
                 if is_new:
+                    # Ensure we have a live Redis connection
+                    if redis is None:
+                        redis = await _get_redis()
+
                     payload = json.dumps(alert_data, ensure_ascii=False)
                     await redis.publish(REDIS_CHANNEL, payload)
                     cities = ", ".join(alert_data.get("data", []))
                     logger.info("New alert: [%s] %s", alert_data.get("title"), cities)
+
+        except (aioredis.ConnectionError, aioredis.TimeoutError, ConnectionError, OSError) as exc:
+            logger.error("Redis connection error: %s — reconnecting in %ds", exc, REDIS_RECONNECT_DELAY)
+            # Discard the broken connection so a fresh one is created next iteration
+            if redis is not None:
+                try:
+                    await redis.aclose()
+                except Exception:
+                    pass
+                redis = None
+            await asyncio.sleep(REDIS_RECONNECT_DELAY)
+            continue
 
         except Exception:
             logger.exception("Poller error")

@@ -16,6 +16,8 @@ export const SOUND_OPTIONS: SoundOption[] = [
   { id: "calm", labelKey: "soundCalm" },
 ];
 
+import { getAudioContext } from "../utils/audioContext";
+
 const STORAGE_KEY = "ra-alert-sound";
 
 export function getSavedSound(): SoundId {
@@ -29,7 +31,7 @@ export function saveSound(id: SoundId) {
 }
 
 function createCtx(): AudioContext {
-  return new AudioContext();
+  return getAudioContext();
 }
 
 function synthTone(freq: number, duration: number, type: OscillatorType = "sine", volume = 0.3): void {

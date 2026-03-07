@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import AlertMap from "./components/AlertMap";
 import AlertFeed from "./components/AlertFeed";
 import AlertHistory from "./components/AlertHistory";
@@ -8,6 +8,7 @@ import TvView from "./components/TvView";
 import OverlayView from "./components/OverlayView";
 import CastPanel from "./components/CastPanel";
 import SoundSettings from "./components/SoundSettings";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Onboarding, { useOnboarding } from "./components/Onboarding";
 import UpdatedAgo from "./components/UpdatedAgo";
 import { useAlertStream } from "./hooks/useAlertStream";
@@ -20,8 +21,8 @@ import { useNotifications } from "./hooks/useNotifications";
 import { useVibrate } from "./hooks/useVibrate";
 import { useTTS } from "./hooks/useTTS";
 import { usePWAInstall } from "./hooks/usePWAInstall";
+import { useAlertSoundHandler } from "./hooks/useAlertSoundHandler";
 import { LanguageProvider, useLang } from "./context/LanguageContext";
-import type { AlertData } from "./types/alert";
 
 type Tab = "live" | "history" | "stats" | "settings";
 
@@ -45,71 +46,9 @@ function Dashboard() {
 
   useWakeLock();
 
-  const isEventEnded = useCallback((alert: AlertData) => {
-    return (alert.title || "").includes("הסתיים");
-  }, []);
-
-  const isEarlyWarning = useCallback((alert: AlertData) => {
-    return (alert.title || "").includes("בדקות הקרובות");
-  }, []);
-
-  const onAlert = useCallback(
-    (alert: AlertData) => {
-      if (isEventEnded(alert)) {
-        // Soft chime for "event ended"
-        try {
-          const ctx = new AudioContext();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.frequency.value = 523;
-          osc.type = "sine";
-          gain.gain.setValueAtTime(0.15, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
-          osc.start();
-          osc.stop(ctx.currentTime + 1.5);
-          const osc2 = ctx.createOscillator();
-          const gain2 = ctx.createGain();
-          osc2.connect(gain2);
-          gain2.connect(ctx.destination);
-          osc2.frequency.value = 659;
-          osc2.type = "sine";
-          gain2.gain.setValueAtTime(0.1, ctx.currentTime + 0.3);
-          gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.8);
-          osc2.start(ctx.currentTime + 0.3);
-          osc2.stop(ctx.currentTime + 1.8);
-        } catch {}
-      } else if (isEarlyWarning(alert)) {
-        // Long steady 5-second warning beep for early warning
-        try {
-          const ctx = new AudioContext();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.frequency.value = 740;
-          osc.type = "sine";
-          gain.gain.setValueAtTime(0.25, ctx.currentTime);
-          gain.gain.setValueAtTime(0.25, ctx.currentTime + 4.5);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 5);
-          osc.start();
-          osc.stop(ctx.currentTime + 5);
-        } catch {}
-      } else {
-        const matched = getMatchedCities(alert.cities);
-        if (matched.length > 0) {
-          playAlarm();
-          speak(alert.title, matched);
-        } else {
-          playBeep();
-        }
-        vibrate(matched.length > 0);
-      }
-      notify(alert, hasMatch(alert.cities));
-    },
-    [isEventEnded, isEarlyWarning, hasMatch, getMatchedCities, playAlarm, playBeep, notify, vibrate, speak]
-  );
+  const { onAlert } = useAlertSoundHandler({
+    hasMatch, getMatchedCities, playAlarm, playBeep, notify, vibrate, speak,
+  });
 
   const { alerts, connected } = useAlertStream(onAlert);
 
@@ -129,11 +68,11 @@ function Dashboard() {
     }
   }, []);
 
-  if (typeof document !== "undefined") {
-    document.onfullscreenchange = () => {
-      setFullscreen(!!document.fullscreenElement);
-    };
-  }
+  useEffect(() => {
+    const handler = () => setFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
 
   if (showOnboarding) {
     return <Onboarding onActivate={handleOnboardingActivate} />;
@@ -283,8 +222,10 @@ function Dashboard() {
 
 export default function App() {
   return (
-    <LanguageProvider>
-      {isOverlayMode ? <OverlayView /> : isTvMode ? <TvView /> : <Dashboard />}
-    </LanguageProvider>
+    <ErrorBoundary>
+      <LanguageProvider>
+        {isOverlayMode ? <OverlayView /> : isTvMode ? <TvView /> : <Dashboard />}
+      </LanguageProvider>
+    </ErrorBoundary>
   );
 }

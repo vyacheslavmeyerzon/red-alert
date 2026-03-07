@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useLang } from "../context/LanguageContext";
+import { getAudioContext } from "../utils/audioContext";
 
 const STORAGE_KEY = "ra-onboarded";
 
@@ -24,7 +25,7 @@ export default function Onboarding({ onActivate }: Props) {
   const handleActivate = () => {
     // Create a silent AudioContext to unlock audio on mobile
     try {
-      const ctx = new AudioContext();
+      const ctx = getAudioContext();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       gain.gain.value = 0;
