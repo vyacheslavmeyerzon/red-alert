@@ -31,7 +31,7 @@ const isOverlayMode = window.location.hash === "#/overlay" || window.location.pa
 function Dashboard() {
   const [tab, setTab] = useState<Tab>("live");
   const [fullscreen, setFullscreen] = useState(false);
-  const { cities, addCity, removeCity, hasMatch } = useSavedCities();
+  const { cities, addCity, removeCity, hasMatch, getMatchedCities } = useSavedCities();
   const { playAlarm, playBeep } = useAlarm();
   const { requestPermission, notify } = useNotifications();
   const { vibrate } = useVibrate();
@@ -97,18 +97,18 @@ function Dashboard() {
           osc.stop(ctx.currentTime + 5);
         } catch {}
       } else {
-        const isSaved = hasMatch(alert.cities);
-        if (isSaved) {
+        const matched = getMatchedCities(alert.cities);
+        if (matched.length > 0) {
           playAlarm();
+          speak(alert.title, matched);
         } else {
           playBeep();
         }
-        vibrate(isSaved);
+        vibrate(matched.length > 0);
       }
       notify(alert, hasMatch(alert.cities));
-      speak(alert.title, alert.cities);
     },
-    [isEventEnded, isEarlyWarning, hasMatch, playAlarm, playBeep, notify, vibrate, speak]
+    [isEventEnded, isEarlyWarning, hasMatch, getMatchedCities, playAlarm, playBeep, notify, vibrate, speak]
   );
 
   const { alerts, connected } = useAlertStream(onAlert);

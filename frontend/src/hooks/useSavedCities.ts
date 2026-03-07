@@ -36,5 +36,14 @@ export function useSavedCities() {
     [cities]
   );
 
-  return { cities, addCity, removeCity, hasMatch };
+  const getMatchedCities = useCallback(
+    (alertCities: string[]) => {
+      return alertCities.filter(
+        (ac) => cities.some((sc) => ac === sc || ac.includes(sc) || sc.includes(ac))
+      );
+    },
+    [cities]
+  );
+
+  return { cities, addCity, removeCity, hasMatch, getMatchedCities };
 }
