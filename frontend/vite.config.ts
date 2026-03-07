@@ -10,12 +10,6 @@ export default defineConfig({
         target: "http://localhost:8000",
         changeOrigin: true,
       },
-      "/kan-live": {
-        target: "https://kan11w.media.kan.org.il",
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/kan-live/, ""),
-        secure: false,
-      },
     },
   },
 });
