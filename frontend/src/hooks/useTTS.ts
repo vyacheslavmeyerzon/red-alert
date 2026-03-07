@@ -1,9 +1,21 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 const STORAGE_KEY = "ra-tts-enabled";
 
 export function useTTS() {
   const [enabled, setEnabled] = useState(() => localStorage.getItem(STORAGE_KEY) === "true");
+
+  // Unlock SpeechSynthesis on first user interaction (Chrome autoplay policy)
+  useEffect(() => {
+    const unlock = () => {
+      const utterance = new SpeechSynthesisUtterance("");
+      utterance.volume = 0;
+      window.speechSynthesis.speak(utterance);
+      document.removeEventListener("click", unlock);
+    };
+    document.addEventListener("click", unlock);
+    return () => document.removeEventListener("click", unlock);
+  }, []);
 
   const toggle = useCallback(() => {
     setEnabled((prev) => {
