@@ -1,6 +1,6 @@
 import { MapContainer, TileLayer, Circle, GeoJSON as LeafletGeoJSON, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AlertData } from "../types/alert";
 import { resolveCoords, findPolygon, loadPolygons } from "../utils/mapUtils";
 import AlertPopupContent from "./AlertPopup";
@@ -35,7 +35,6 @@ interface ThreatZone {
 
 function ThreatZones({ alerts }: { alerts: AlertData[] }) {
   const map = useMap();
-  const prevCountRef = useRef(0);
   const [polygons, setPolygons] = useState<GeoJSON.FeatureCollection | null>(null);
 
   useEffect(() => { loadPolygons(setPolygons); }, []);
@@ -54,16 +53,6 @@ function ThreatZones({ alerts }: { alerts: AlertData[] }) {
     }
     return result;
   }, [alerts]);
-
-  useEffect(() => {
-    if (zones.length > 0 && zones.length !== prevCountRef.current) {
-      const bounds = L.latLngBounds(zones.map((z) => z.coords));
-      map.fitBounds(bounds.pad(0.3), { maxZoom: 12, animate: true });
-    } else if (zones.length === 0 && prevCountRef.current > 0) {
-      map.flyTo(ISRAEL_CENTER, 8, { animate: true, duration: 1 });
-    }
-    prevCountRef.current = zones.length;
-  }, [zones, map]);
 
   useEffect(() => {
     const timer = setTimeout(() => map.invalidateSize(), 500);
@@ -161,6 +150,11 @@ export default function TvMap({ alerts }: { alerts: AlertData[] }) {
       zoom={8}
       style={{ width: "100%", height: "100%" }}
       zoomControl={false}
+      dragging={false}
+      scrollWheelZoom={false}
+      doubleClickZoom={false}
+      touchZoom={false}
+      keyboard={false}
     >
       <TileLayer
         attribution='&copy; CARTO'

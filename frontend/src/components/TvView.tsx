@@ -104,6 +104,16 @@ export default function TvView() {
         </div>
       )}
 
+      {/* Kan 11 live stream — bottom-left corner */}
+      <div className="tv-live-stream">
+        <iframe
+          src="https://www.kan.org.il/live/"
+          title="Kan 11 Live"
+          allow="autoplay; encrypted-media"
+          allowFullScreen
+        />
+      </div>
+
       {/* Idle state — show recent alerts + today stats */}
       {alerts.length === 0 && (
         <div className="tv-idle">
