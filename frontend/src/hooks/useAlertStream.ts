@@ -43,7 +43,10 @@ export function useAlertStream(onAlert?: (alert: AlertData) => void) {
           alerted_at: new Date().toISOString(),
         };
 
-        setAlerts((prev) => [alert, ...prev].slice(0, MAX_ALERTS));
+        setAlerts((prev) => {
+          if (prev.some((a) => a.id === alert.id)) return prev;
+          return [alert, ...prev].slice(0, MAX_ALERTS);
+        });
         resetClearTimer();
 
         // Notify parent for sound handling

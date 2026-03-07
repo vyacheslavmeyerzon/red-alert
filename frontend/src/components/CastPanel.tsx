@@ -113,6 +113,7 @@ export default function CastPanel() {
   useEffect(() => { detect(); }, [detect]);
 
   const tvUrl = lanIp ? `http://${lanIp}/#/tv` : "";
+  const tvUrlHttps = lanIp ? `https://${lanIp}/#/tv` : "";
 
   const saveManualIp = () => {
     const ip = manualInput.trim();
@@ -170,6 +171,16 @@ export default function CastPanel() {
                 <button
                   className="copy-btn"
                   onClick={() => navigator.clipboard.writeText(tvUrl)}
+                  title={t.copyTitle}
+                >
+                  📋
+                </button>
+              </div>
+              <div className="tv-url-box" style={{ marginTop: 4 }}>
+                <code>{tvUrlHttps}</code>
+                <button
+                  className="copy-btn"
+                  onClick={() => navigator.clipboard.writeText(tvUrlHttps)}
                   title={t.copyTitle}
                 >
                   📋

@@ -1,6 +1,6 @@
-import { MapContainer, TileLayer, Circle, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Circle, GeoJSON as LeafletGeoJSON, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AlertData } from "../types/alert";
 import { CITY_COORDS } from "./AlertMap";
 import { getShelterTime, formatShelterTime, shelterUrgencyColor } from "../data/shelterTimes";
@@ -8,25 +8,12 @@ import "leaflet/dist/leaflet.css";
 
 const ISRAEL_CENTER: [number, number] = [31.5, 34.9];
 
-const THREAT_RADIUS: Record<number, number> = {
-  1: 3000, 2: 5000, 3: 8000, 4: 10000, 5: 4000, 6: 3000, 7: 2000, 13: 2000,
-};
-
 const CATEGORY_COLORS: Record<number, string> = {
   1: "#ef4444", 2: "#f59e0b", 3: "#8b5cf6", 4: "#3b82f6",
   5: "#f97316", 6: "#10b981", 7: "#dc2626", 13: "#6366f1",
 };
 
-function getScaledRadius(category: number, city: string): number {
-  const base = THREAT_RADIUS[category] || 3000;
-  const shelter = getShelterTime(city);
-  if (shelter === null) return base;
-  if (shelter === 0) return base * 0.6;
-  if (shelter <= 15) return base * 0.8;
-  if (shelter <= 30) return base;
-  if (shelter <= 60) return base * 1.3;
-  return base * 1.5;
-}
+const FALLBACK_RADIUS = 3000;
 
 const droneIcon = new L.DivIcon({
   className: "drone-marker",
@@ -47,15 +34,55 @@ function resolveCoords(city: string): [number, number] | null {
   return key ? CITY_COORDS[key] : null;
 }
 
+function normalizeName(name: string): string {
+  return name.replace(/[-–־׳'"]/g, " ").replace(/\s+/g, " ").trim();
+}
+
 interface ThreatZone {
   city: string;
   coords: [number, number];
   alert: AlertData;
 }
 
+// Polygon cache
+let polyCache: GeoJSON.FeatureCollection | null = null;
+let polyLoading = false;
+const polyCbs: Array<(d: GeoJSON.FeatureCollection) => void> = [];
+
+function loadPolygons(cb: (d: GeoJSON.FeatureCollection) => void) {
+  if (polyCache) { cb(polyCache); return; }
+  polyCbs.push(cb);
+  if (polyLoading) return;
+  polyLoading = true;
+  fetch("/israel-polygons.json")
+    .then((r) => r.json())
+    .then((d: GeoJSON.FeatureCollection) => {
+      polyCache = d;
+      for (const fn of polyCbs) fn(d);
+      polyCbs.length = 0;
+    })
+    .catch(() => { polyLoading = false; });
+}
+
+function findPolygon(city: string, polygons: GeoJSON.FeatureCollection): GeoJSON.Feature | null {
+  const norm = normalizeName(city);
+  let f = polygons.features.find((f) => f.properties?.name === city);
+  if (f) return f;
+  f = polygons.features.find((f) => normalizeName(f.properties?.name || "") === norm);
+  if (f) return f;
+  f = polygons.features.find((f) => {
+    const pn = normalizeName(f.properties?.name || "");
+    return pn.includes(norm) || norm.includes(pn);
+  });
+  return f || null;
+}
+
 function ThreatZones({ alerts }: { alerts: AlertData[] }) {
   const map = useMap();
   const prevCountRef = useRef(0);
+  const [polygons, setPolygons] = useState<GeoJSON.FeatureCollection | null>(null);
+
+  useEffect(() => { loadPolygons(setPolygons); }, []);
 
   const zones: ThreatZone[] = useMemo(() => {
     const result: ThreatZone[] = [];
@@ -82,39 +109,82 @@ function ThreatZones({ alerts }: { alerts: AlertData[] }) {
     prevCountRef.current = zones.length;
   }, [zones, map]);
 
-  // Force resize after mount for TV browsers
   useEffect(() => {
     const timer = setTimeout(() => map.invalidateSize(), 500);
     return () => clearTimeout(timer);
   }, [map]);
 
+  // Split zones into those with polygons and those without
+  const { withPoly, withoutPoly } = useMemo(() => {
+    const withPoly: Array<{ zone: ThreatZone; feature: GeoJSON.Feature }> = [];
+    const withoutPoly: ThreatZone[] = [];
+    for (const z of zones) {
+      const poly = polygons ? findPolygon(z.city, polygons) : null;
+      if (poly) {
+        withPoly.push({ zone: z, feature: poly });
+      } else {
+        withoutPoly.push(z);
+      }
+    }
+    return { withPoly, withoutPoly };
+  }, [zones, polygons]);
+
   return (
     <>
-      {/* Outer pulse rings */}
-      {zones.map((z, i) => {
-        const radius = getScaledRadius(z.alert.category, z.city) * 1.5;
+      {/* Real polygon zones */}
+      {withPoly.map(({ zone: z, feature }, i) => {
         const color = CATEGORY_COLORS[z.alert.category] || "#ef4444";
         return (
-          <Circle
-            key={`pulse-${z.city}-${i}`}
-            center={z.coords}
-            radius={radius}
-            pathOptions={{
-              color, fillColor: color, fillOpacity: 0.08,
-              weight: 1, opacity: 0.3, dashArray: "8 8",
+          <LeafletGeoJSON
+            key={`poly-${z.city}-${z.alert.id}-${i}`}
+            data={feature}
+            style={{
+              color,
+              fillColor: color,
+              fillOpacity: 0.35,
+              weight: 2,
+              opacity: 0.8,
             }}
-          />
+          >
+            <Popup>
+              <div style={{ direction: "rtl", textAlign: "right", minWidth: 180 }}>
+                <div style={{
+                  background: color, color: "#fff", padding: "4px 8px",
+                  borderRadius: 4, marginBottom: 6, fontWeight: 700, fontSize: 13,
+                }}>
+                  🔴 אזעקה פעילה
+                </div>
+                <strong>{z.alert.title}</strong><br />
+                <span style={{ fontSize: 14 }}>{z.city}</span><br />
+                <small style={{ color: "#666" }}>
+                  {new Date(z.alert.alerted_at).toLocaleTimeString("he-IL")}
+                </small>
+                {(() => {
+                  const shelter = getShelterTime(z.city);
+                  if (shelter === null) return null;
+                  return (
+                    <div style={{
+                      marginTop: 6, padding: "5px 8px", background: shelterUrgencyColor(shelter),
+                      borderRadius: 4, fontSize: 13, fontWeight: 700, color: "#fff", textAlign: "center",
+                    }}>
+                      🛡️ זמן מיגון: {formatShelterTime(shelter)}
+                    </div>
+                  );
+                })()}
+              </div>
+            </Popup>
+          </LeafletGeoJSON>
         );
       })}
 
-      {zones.map((z, i) => {
-        const radius = getScaledRadius(z.alert.category, z.city);
+      {/* Circle fallback for cities without polygon data */}
+      {withoutPoly.map((z, i) => {
         const color = CATEGORY_COLORS[z.alert.category] || "#ef4444";
         return (
           <Circle
             key={`zone-${z.city}-${z.alert.id}-${i}`}
             center={z.coords}
-            radius={radius}
+            radius={FALLBACK_RADIUS}
             pathOptions={{
               color,
               fillColor: color,
@@ -127,7 +197,7 @@ function ThreatZones({ alerts }: { alerts: AlertData[] }) {
             <Popup>
               <div style={{ direction: "rtl", textAlign: "right", minWidth: 180 }}>
                 <div style={{
-                  background: "#ef4444", color: "#fff", padding: "4px 8px",
+                  background: color, color: "#fff", padding: "4px 8px",
                   borderRadius: 4, marginBottom: 6, fontWeight: 700, fontSize: 13,
                 }}>
                   🔴 אזעקה פעילה
@@ -155,18 +225,20 @@ function ThreatZones({ alerts }: { alerts: AlertData[] }) {
         );
       })}
 
+      {/* Center dot markers (non-drones) */}
       {zones.filter((z) => z.alert.category !== 5).map((z, i) => (
         <Circle
           key={`dot-${z.city}-${i}`}
           center={z.coords}
           radius={500}
           pathOptions={{
-            color: "#fff", fillColor: "#ef4444", fillOpacity: 0.9,
-            weight: 2, opacity: 1, className: "threat-dot-pulse",
+            color: "#fff", fillColor: CATEGORY_COLORS[z.alert.category] || "#ef4444",
+            fillOpacity: 0.9, weight: 2, opacity: 1, className: "threat-dot-pulse",
           }}
         />
       ))}
 
+      {/* Drone markers */}
       {zones.filter((z) => z.alert.category === 5).map((z, i) => (
         <Marker key={`drone-${z.city}-${i}`} position={z.coords} icon={droneIcon} />
       ))}

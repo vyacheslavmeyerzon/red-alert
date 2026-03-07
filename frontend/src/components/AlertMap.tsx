@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Map, { Source, Layer, Marker, Popup, type MapRef } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
+import React from "react";
 import type { AlertData } from "../types/alert";
 import { getShelterTime, formatShelterTime, shelterUrgencyColor } from "../data/shelterTimes";
 
@@ -135,30 +136,7 @@ const CATEGORY_COLORS: Record<number, string> = {
   5: "#f97316", 6: "#10b981", 7: "#dc2626", 13: "#6366f1",
 };
 
-// Base threat zone radius by category (meters)
-const THREAT_RADIUS: Record<number, number> = {
-  1: 3000,
-  2: 5000,
-  3: 8000,
-  4: 10000,
-  5: 4000,
-  6: 3000,
-  7: 2000,
-  13: 2000,
-};
-
-// Scale radius based on shelter time — cities with longer shelter times
-// are further from threat, so their zone should appear as the area they represent
-function getScaledRadius(category: number, city: string): number {
-  const base = THREAT_RADIUS[category] || 3000;
-  const shelter = getShelterTime(city);
-  if (shelter === null) return base;
-  if (shelter === 0) return base * 0.6;
-  if (shelter <= 15) return base * 0.8;
-  if (shelter <= 30) return base;
-  if (shelter <= 60) return base * 1.3;
-  return base * 1.5;
-}
+const FALLBACK_RADIUS = 3000;
 
 function resolveCoords(city: string): [number, number] | null {
   if (CITY_COORDS[city]) return CITY_COORDS[city];
@@ -166,6 +144,24 @@ function resolveCoords(city: string): [number, number] | null {
     (k) => city.includes(k) || k.includes(city)
   );
   return key ? CITY_COORDS[key] : null;
+}
+
+/** Create a GeoJSON circle polygon (fallback when no real polygon). */
+function createCircle(lat: number, lng: number, radiusMeters: number, points = 64, color = "#ef4444"): GeoJSON.Feature {
+  const coords: [number, number][] = [];
+  const km = radiusMeters / 1000;
+  for (let i = 0; i <= points; i++) {
+    const angle = (i / points) * 2 * Math.PI;
+    const dLat = (km / 111.32) * Math.cos(angle);
+    const dLng = (km / (111.32 * Math.cos((lat * Math.PI) / 180))) * Math.sin(angle);
+    coords.push([lng + dLng, lat + dLat]);
+  }
+  return { type: "Feature", geometry: { type: "Polygon", coordinates: [coords] }, properties: { color } };
+}
+
+// Normalize Hebrew name for matching (remove dashes, maqaf, etc.)
+function normalizeName(name: string): string {
+  return name.replace(/[-–־׳'"]/g, " ").replace(/\s+/g, " ").trim();
 }
 
 interface ThreatZone {
@@ -178,17 +174,42 @@ interface Props {
   alerts: AlertData[];
 }
 
-/** Create a GeoJSON circle polygon from a center point and radius in meters. */
-function createCircle(lat: number, lng: number, radiusMeters: number, points = 48, color = "#ef4444"): GeoJSON.Feature {
-  const coords: [number, number][] = [];
-  const km = radiusMeters / 1000;
-  for (let i = 0; i <= points; i++) {
-    const angle = (i / points) * 2 * Math.PI;
-    const dLat = (km / 111.32) * Math.cos(angle);
-    const dLng = (km / (111.32 * Math.cos((lat * Math.PI) / 180))) * Math.sin(angle);
-    coords.push([lng + dLng, lat + dLat]);
-  }
-  return { type: "Feature", geometry: { type: "Polygon", coordinates: [coords] }, properties: { color } };
+// Polygon data cache
+let polygonCache: GeoJSON.FeatureCollection | null = null;
+let polygonLoading = false;
+const polygonCallbacks: Array<(data: GeoJSON.FeatureCollection) => void> = [];
+
+function loadPolygons(cb: (data: GeoJSON.FeatureCollection) => void) {
+  if (polygonCache) { cb(polygonCache); return; }
+  polygonCallbacks.push(cb);
+  if (polygonLoading) return;
+  polygonLoading = true;
+  fetch("/israel-polygons.json")
+    .then((r) => r.json())
+    .then((data: GeoJSON.FeatureCollection) => {
+      polygonCache = data;
+      for (const fn of polygonCallbacks) fn(data);
+      polygonCallbacks.length = 0;
+    })
+    .catch(() => {
+      polygonLoading = false;
+    });
+}
+
+function findPolygon(city: string, polygons: GeoJSON.FeatureCollection): GeoJSON.Feature | null {
+  const norm = normalizeName(city);
+  // Exact match
+  let feature = polygons.features.find((f) => f.properties?.name === city);
+  if (feature) return feature;
+  // Normalized match
+  feature = polygons.features.find((f) => normalizeName(f.properties?.name || "") === norm);
+  if (feature) return feature;
+  // Partial match
+  feature = polygons.features.find((f) => {
+    const pName = normalizeName(f.properties?.name || "");
+    return pName.includes(norm) || norm.includes(pName);
+  });
+  return feature || null;
 }
 
 function ShelterCountdown({ city }: { city: string }) {
@@ -216,6 +237,11 @@ function ShelterCountdown({ city }: { city: string }) {
 export default function AlertMap({ alerts }: Props) {
   const mapRef = useRef<MapRef>(null);
   const prevCountRef = useRef(0);
+  const [polygons, setPolygons] = useState<GeoJSON.FeatureCollection | null>(null);
+
+  useEffect(() => {
+    loadPolygons(setPolygons);
+  }, []);
 
   const zones: ThreatZone[] = useMemo(() => {
     const result: ThreatZone[] = [];
@@ -232,25 +258,23 @@ export default function AlertMap({ alerts }: Props) {
     return result;
   }, [alerts]);
 
-  // GeoJSON for threat zone circles
-  const zonesGeoJson = useMemo<GeoJSON.FeatureCollection>(() => ({
-    type: "FeatureCollection",
-    features: zones.map((z) => {
-      const radius = getScaledRadius(z.alert.category, z.city);
+  // Build GeoJSON — use real polygons when available, circles as fallback
+  const zonesGeoJson = useMemo<GeoJSON.FeatureCollection>(() => {
+    const features: GeoJSON.Feature[] = [];
+    for (const z of zones) {
       const color = CATEGORY_COLORS[z.alert.category] || "#ef4444";
-      return createCircle(z.coords[0], z.coords[1], radius, 64, color);
-    }),
-  }), [zones]);
-
-  // Outer pulse ring — 1.5x radius
-  const pulseGeoJson = useMemo<GeoJSON.FeatureCollection>(() => ({
-    type: "FeatureCollection",
-    features: zones.map((z) => {
-      const radius = getScaledRadius(z.alert.category, z.city) * 1.5;
-      const color = CATEGORY_COLORS[z.alert.category] || "#ef4444";
-      return createCircle(z.coords[0], z.coords[1], radius, 64, color);
-    }),
-  }), [zones]);
+      const poly = polygons ? findPolygon(z.city, polygons) : null;
+      if (poly) {
+        features.push({
+          ...poly,
+          properties: { ...poly.properties, color },
+        });
+      } else {
+        features.push(createCircle(z.coords[0], z.coords[1], FALLBACK_RADIUS, 64, color));
+      }
+    }
+    return { type: "FeatureCollection", features };
+  }, [zones, polygons]);
 
   // Auto-fit map to alert bounds
   useEffect(() => {
@@ -285,29 +309,7 @@ export default function AlertMap({ alerts }: Props) {
       mapStyle={MAP_STYLE}
       attributionControl={false}
     >
-      {/* Outer pulse ring */}
-      <Source id="pulse-zones" type="geojson" data={pulseGeoJson}>
-        <Layer
-          id="pulse-zone-fill"
-          type="fill"
-          paint={{
-            "fill-color": ["get", "color"],
-            "fill-opacity": 0.08,
-          }}
-        />
-        <Layer
-          id="pulse-zone-border"
-          type="line"
-          paint={{
-            "line-color": ["get", "color"],
-            "line-width": 1,
-            "line-opacity": 0.3,
-            "line-dasharray": [4, 4],
-          }}
-        />
-      </Source>
-
-      {/* Threat zone fills */}
+      {/* Threat zone polygons/circles */}
       <Source id="threat-zones" type="geojson" data={zonesGeoJson}>
         <Layer
           id="threat-zone-fill"
@@ -405,6 +407,3 @@ export default function AlertMap({ alerts }: Props) {
     </Map>
   );
 }
-
-// Need React import for useState in the component
-import React from "react";
