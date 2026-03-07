@@ -352,7 +352,7 @@ export default function AlertMap({ alerts }: Props) {
               ) : (
                 <div className="alert-dot-marker" style={{ background: catColor, boxShadow: `0 0 12px ${catColor}cc` }} />
               )}
-              <ShelterCountdown city={z.city} />
+              {!(z.alert.title || "").includes("הסתיים") && <ShelterCountdown city={z.city} />}
             </div>
           </Marker>
         );
@@ -382,6 +382,7 @@ export default function AlertMap({ alerts }: Props) {
               {new Date(popupInfo.alert.alerted_at).toLocaleTimeString("he-IL")}
             </small>
             {(() => {
+              if ((popupInfo.alert.title || "").includes("הסתיים")) return null;
               const shelter = getShelterTime(popupInfo.city);
               if (shelter === null) return null;
               return (

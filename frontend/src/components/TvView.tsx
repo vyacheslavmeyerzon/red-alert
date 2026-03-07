@@ -90,7 +90,8 @@ export default function TvView() {
     return () => clearInterval(id);
   }, []);
 
-  const allCities = alerts.flatMap((a) => a.cities);
+  const activeAlerts = alerts.filter((a) => !(a.title || "").includes("הסתיים"));
+  const allCities = activeAlerts.flatMap((a) => a.cities);
   const shelterTimes = allCities.map(getShelterTime).filter((t): t is number => t !== null);
   const minShelter = shelterTimes.length > 0 ? Math.min(...shelterTimes) : null;
 

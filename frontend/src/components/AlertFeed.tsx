@@ -62,7 +62,8 @@ export default function AlertFeed({ alerts, connected, savedCities = [] }: Props
       ) : (
         <div className="alert-list">
           {alerts.map((alert, i) => {
-            const shelterTimes = alert.cities
+            const isEnded = (alert.title || "").includes("הסתיים");
+            const shelterTimes = isEnded ? [] : alert.cities
               .map(getShelterTime)
               .filter((t): t is number => t !== null);
             const minShelter = shelterTimes.length > 0 ? Math.min(...shelterTimes) : null;
@@ -106,7 +107,7 @@ export default function AlertFeed({ alerts, connected, savedCities = [] }: Props
                         <span className={`city-tag ${isSavedMatch(city, savedCities) ? "city-tag-saved" : ""}`}>
                           {isSavedMatch(city, savedCities) && "🔔 "}{city}
                         </span>
-                        <ShelterBadge city={city} />
+                        {!isEnded && <ShelterBadge city={city} />}
                       </span>
                     )}
                   />

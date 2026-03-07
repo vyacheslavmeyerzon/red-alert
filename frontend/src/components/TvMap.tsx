@@ -160,6 +160,7 @@ function ThreatZones({ alerts }: { alerts: AlertData[] }) {
                   {new Date(z.alert.alerted_at).toLocaleTimeString("he-IL")}
                 </small>
                 {(() => {
+                  if ((z.alert.title || "").includes("הסתיים")) return null;
                   const shelter = getShelterTime(z.city);
                   if (shelter === null) return null;
                   return (
@@ -208,6 +209,7 @@ function ThreatZones({ alerts }: { alerts: AlertData[] }) {
                   {new Date(z.alert.alerted_at).toLocaleTimeString("he-IL")}
                 </small>
                 {(() => {
+                  if ((z.alert.title || "").includes("הסתיים")) return null;
                   const shelter = getShelterTime(z.city);
                   if (shelter === null) return null;
                   return (
