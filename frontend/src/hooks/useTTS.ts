@@ -3,7 +3,10 @@ import { useCallback, useEffect, useState } from "react";
 const STORAGE_KEY = "ra-tts-enabled";
 
 export function useTTS() {
-  const [enabled, setEnabled] = useState(() => localStorage.getItem(STORAGE_KEY) === "true");
+  const [enabled, setEnabled] = useState(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored === null ? true : stored === "true";
+  });
 
   // Unlock SpeechSynthesis on first user interaction (Chrome autoplay policy)
   // and preload voices (Chrome loads them asynchronously)
