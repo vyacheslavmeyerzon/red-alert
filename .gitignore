@@ -16,6 +16,9 @@ dist/
 # Docker
 host-ip.txt
 
+# SSL certs (auto-generated per machine)
+*.pem
+
 # Internal
 checklist.md
 /TzvAdom.mp3
