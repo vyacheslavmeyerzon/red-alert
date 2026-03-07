@@ -1,12 +1,12 @@
-import { MapContainer, TileLayer, Circle, GeoJSON as LeafletGeoJSON, Marker, Popup, useMap } from "react-leaflet";
-import L from "leaflet";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { AlertData } from "../types/alert";
-import { resolveCoords, findPolygon, loadPolygons } from "../utils/mapUtils";
-import AlertPopupContent from "./AlertPopup";
-import "leaflet/dist/leaflet.css";
+import { resolveCoords } from "../utils/mapUtils";
 
-const ISRAEL_CENTER: [number, number] = [31.5, 34.9];
+// Viewport bounds matching zoom-8 view of Israel
+const LAT_MIN = 29.2;
+const LAT_MAX = 33.6;
+const LNG_MIN = 33.7;
+const LNG_MAX = 36.3;
 
 const CATEGORY_COLORS: Record<number, string> = {
   1: "#ef4444", 2: "#f59e0b", 3: "#8b5cf6", 4: "#3b82f6",
@@ -14,18 +14,32 @@ const CATEGORY_COLORS: Record<number, string> = {
   13: "#6366f1", 14: "#eab308",
 };
 
-const FALLBACK_RADIUS = 3000;
+// Simplified Israel border outline (lat, lng pairs)
+const ISRAEL_BORDER: [number, number][] = [
+  [29.49, 34.88], [29.52, 34.95], [29.56, 34.96], [29.93, 34.82],
+  [30.32, 34.56], [30.52, 34.48], [30.85, 34.36], [31.08, 34.22],
+  [31.22, 34.24], [31.32, 34.27], [31.50, 34.39], [31.68, 34.56],
+  [31.82, 34.62], [32.00, 34.72], [32.16, 34.78], [32.33, 34.83],
+  [32.55, 34.87], [32.75, 34.95], [32.82, 35.01], [32.92, 35.06],
+  [33.05, 35.11], [33.15, 35.18], [33.28, 35.62],
+  [33.10, 35.65], [32.92, 35.63], [32.75, 35.58], [32.60, 35.55],
+  [32.45, 35.52], [32.30, 35.55], [32.10, 35.57], [31.80, 35.53],
+  [31.50, 35.47], [31.30, 35.45], [31.10, 35.40], [30.80, 35.25],
+  [30.50, 35.15], [30.15, 35.05], [29.55, 34.97], [29.49, 34.88],
+];
 
-const droneIcon = new L.DivIcon({
-  className: "drone-marker",
-  html: `<div class="drone-icon-wrapper">
-    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
-    </svg>
-  </div>`,
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-});
+function toSvg(lat: number, lng: number): { x: number; y: number } {
+  const x = ((lng - LNG_MIN) / (LNG_MAX - LNG_MIN)) * 100;
+  const y = ((LAT_MAX - lat) / (LAT_MAX - LAT_MIN)) * 100;
+  return { x, y };
+}
+
+const borderPath = ISRAEL_BORDER
+  .map((p, i) => {
+    const { x, y } = toSvg(p[0], p[1]);
+    return `${i === 0 ? "M" : "L"}${x},${y}`;
+  })
+  .join(" ") + " Z";
 
 interface ThreatZone {
   city: string;
@@ -33,12 +47,7 @@ interface ThreatZone {
   alert: AlertData;
 }
 
-function ThreatZones({ alerts }: { alerts: AlertData[] }) {
-  const map = useMap();
-  const [polygons, setPolygons] = useState<GeoJSON.FeatureCollection | null>(null);
-
-  useEffect(() => { loadPolygons(setPolygons); }, []);
-
+export default function TvMap({ alerts }: { alerts: AlertData[] }) {
   const zones: ThreatZone[] = useMemo(() => {
     const result: ThreatZone[] = [];
     const seen = new Set<string>();
@@ -54,113 +63,40 @@ function ThreatZones({ alerts }: { alerts: AlertData[] }) {
     return result;
   }, [alerts]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => map.invalidateSize(), 500);
-    return () => clearTimeout(timer);
-  }, [map]);
-
-  // Split zones into those with polygons and those without
-  const { withPoly, withoutPoly } = useMemo(() => {
-    const withPoly: Array<{ zone: ThreatZone; feature: GeoJSON.Feature }> = [];
-    const withoutPoly: ThreatZone[] = [];
-    for (const z of zones) {
-      const poly = polygons ? findPolygon(z.city, polygons) : null;
-      if (poly) {
-        withPoly.push({ zone: z, feature: poly });
-      } else {
-        withoutPoly.push(z);
-      }
-    }
-    return { withPoly, withoutPoly };
-  }, [zones, polygons]);
-
   return (
-    <>
-      {/* Real polygon zones */}
-      {withPoly.map(({ zone: z, feature }, i) => {
-        const color = CATEGORY_COLORS[z.alert.category] || "#ef4444";
-        return (
-          <LeafletGeoJSON
-            key={`poly-${z.city}-${z.alert.id}-${i}`}
-            data={feature}
-            style={{
-              color,
-              fillColor: color,
-              fillOpacity: 0.35,
-              weight: 2,
-              opacity: 0.8,
-            }}
-          >
-            <Popup>
-              <AlertPopupContent city={z.city} alert={z.alert} color={color} />
-            </Popup>
-          </LeafletGeoJSON>
-        );
-      })}
-
-      {/* Circle fallback for cities without polygon data */}
-      {withoutPoly.map((z, i) => {
-        const color = CATEGORY_COLORS[z.alert.category] || "#ef4444";
-        return (
-          <Circle
-            key={`zone-${z.city}-${z.alert.id}-${i}`}
-            center={z.coords}
-            radius={FALLBACK_RADIUS}
-            pathOptions={{
-              color,
-              fillColor: color,
-              fillOpacity: 0.35,
-              weight: 2,
-              opacity: 0.8,
-              className: "threat-zone-live",
-            }}
-          >
-            <Popup>
-              <AlertPopupContent city={z.city} alert={z.alert} color={color} />
-            </Popup>
-          </Circle>
-        );
-      })}
-
-      {/* Center dot markers (non-drones) */}
-      {zones.filter((z) => z.alert.category !== 5).map((z, i) => (
-        <Circle
-          key={`dot-${z.city}-${i}`}
-          center={z.coords}
-          radius={500}
-          pathOptions={{
-            color: "#fff", fillColor: CATEGORY_COLORS[z.alert.category] || "#ef4444",
-            fillOpacity: 0.9, weight: 2, opacity: 1, className: "threat-dot-pulse",
-          }}
+    <div className="tv-svg-map">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="tv-svg-map-svg">
+        {/* Israel border outline */}
+        <path
+          d={borderPath}
+          fill="rgba(255,255,255,0.03)"
+          stroke="rgba(255,255,255,0.15)"
+          strokeWidth="0.3"
         />
-      ))}
 
-      {/* Drone markers */}
-      {zones.filter((z) => z.alert.category === 5).map((z, i) => (
-        <Marker key={`drone-${z.city}-${i}`} position={z.coords} icon={droneIcon} />
-      ))}
-    </>
-  );
-}
-
-export default function TvMap({ alerts }: { alerts: AlertData[] }) {
-  return (
-    <MapContainer
-      center={ISRAEL_CENTER}
-      zoom={8}
-      style={{ width: "100%", height: "100%" }}
-      zoomControl={false}
-      dragging={false}
-      scrollWheelZoom={false}
-      doubleClickZoom={false}
-      touchZoom={false}
-      keyboard={false}
-    >
-      <TileLayer
-        attribution='&copy; CARTO'
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-      />
-      <ThreatZones alerts={alerts} />
-    </MapContainer>
+        {/* Alert zones — glow circles */}
+        {zones.map((z, i) => {
+          const { x, y } = toSvg(z.coords[0], z.coords[1]);
+          const color = CATEGORY_COLORS[z.alert.category] || "#ef4444";
+          const isDrone = z.alert.category === 5;
+          return (
+            <g key={`${z.city}-${z.alert.id}-${i}`}>
+              {/* Outer glow */}
+              <circle cx={x} cy={y} r={isDrone ? 2.5 : 2} fill={color} opacity={0.25}>
+                <animate attributeName="r" values={isDrone ? "2;3.5;2" : "1.5;2.8;1.5"} dur="2s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.3;0.1;0.3" dur="2s" repeatCount="indefinite" />
+              </circle>
+              {/* Inner dot */}
+              <circle cx={x} cy={y} r={isDrone ? 1.2 : 0.8} fill={color} stroke="#fff" strokeWidth="0.15" opacity={0.9}>
+                <animate attributeName="opacity" values="1;0.6;1" dur="1.5s" repeatCount="indefinite" />
+              </circle>
+              {isDrone && (
+                <text x={x} y={y + 0.4} textAnchor="middle" fontSize="1.5" fill="#f97316">✈</text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
   );
 }

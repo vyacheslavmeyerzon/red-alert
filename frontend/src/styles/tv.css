@@ -21,6 +21,18 @@
   height: 100% !important;
 }
 
+/* SVG-based lightweight map for TV / WebOS */
+.tv-svg-map {
+  width: 100%;
+  height: 100%;
+  background: #0f172a;
+}
+
+.tv-svg-map-svg {
+  width: 100%;
+  height: 100%;
+}
+
 .tv-topbar {
   position: fixed;
   top: 0;
