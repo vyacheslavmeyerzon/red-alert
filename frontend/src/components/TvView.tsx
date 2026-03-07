@@ -33,7 +33,7 @@ export default function TvView() {
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    const src = "https://kan11w.media.kan.org.il/hls/live/2105694/2105694/master.m3u8";
+    const src = "/kan-live/hls/live/2105694/2105694/master.m3u8";
     if (Hls.isSupported()) {
       const hls = new Hls({ enableWorker: true });
       hls.loadSource(src);
