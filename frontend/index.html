@@ -3,10 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Red Alert Dashboard - לוח בקרה התרעות</title>
+    <meta name="theme-color" content="#ef4444" />
+    <meta name="description" content="Real-time missile alerts from Israel's Home Front Command" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <title>Red Alert Dashboard</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js").then(function(reg) {
+          reg.active && reg.active.postMessage("start-alerts");
+          reg.addEventListener("updatefound", function() {
+            var w = reg.installing;
+            if (w) w.addEventListener("statechange", function() {
+              if (w.state === "activated") w.postMessage("start-alerts");
+            });
+          });
+        });
+      }
+    </script>
   </body>
 </html>
