@@ -7,10 +7,11 @@ import { useNotifications } from "../hooks/useNotifications";
 import { useVibrate } from "../hooks/useVibrate";
 import { useAlertSoundHandler } from "../hooks/useAlertSoundHandler";
 import CityCarousel from "./CityCarousel";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getShelterTime, formatShelterTime, shelterUrgencyColor } from "../data/shelterTimes";
 import { useLang } from "../context/LanguageContext";
 import type { AlertData } from "../types/alert";
+import Hls from "hls.js";
 
 interface RecentAlert {
   title: string;
@@ -26,6 +27,24 @@ export default function TvView() {
   const { t } = useLang();
 
   useWakeLock();
+
+  // Kan 11 HLS live stream
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const src = "https://kan11w.media.kan.org.il/hls/live/2105694/2105694/master.m3u8";
+    if (Hls.isSupported()) {
+      const hls = new Hls({ enableWorker: true });
+      hls.loadSource(src);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play().catch(() => {}); });
+      return () => hls.destroy();
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = src;
+      video.play().catch(() => {});
+    }
+  }, []);
 
   // Track recent alerts for idle display
   const [recentAlerts, setRecentAlerts] = useState<RecentAlert[]>([]);
@@ -106,12 +125,7 @@ export default function TvView() {
 
       {/* Kan 11 live stream — bottom-left corner */}
       <div className="tv-live-stream">
-        <iframe
-          src="https://www.kan.org.il/live/"
-          title="Kan 11 Live"
-          allow="autoplay; encrypted-media"
-          allowFullScreen
-        />
+        <video ref={videoRef} muted autoPlay playsInline />
       </div>
 
       {/* Idle state — show recent alerts + today stats */}
